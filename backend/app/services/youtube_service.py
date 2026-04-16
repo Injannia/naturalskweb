@@ -29,7 +29,7 @@ import threading
 import urllib.parse
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Union
 
 import shutil
@@ -64,6 +64,7 @@ def _find_ffmpeg() -> str:
 
 
 from app.models.download_task import DownloadTask
+from app.models.shared_file import SharedFile
 from app.schemas.youtube import (
     DownloadRequest,
     DownloadStatus,
@@ -143,10 +144,10 @@ def _row_to_status(row: DownloadTask, *, check_file: bool = False) -> DownloadSt
         download_url = f"/api/youtube/file/{row.id}"
 
     file_exists = False
-    if check_file and row.filename:
-        file_task_id = row.cache_source_task_id or row.id
-        task_dir = os.path.join(settings.UPLOAD_DIR, file_task_id)
-        file_exists = os.path.isfile(os.path.join(task_dir, row.filename))
+    if check_file and row.filename and row.shared_file_id:
+        shared_dir = os.path.join(settings.UPLOAD_DIR, row.shared_file_id)
+        file_path = locate_task_file(shared_dir, row.filename)
+        file_exists = file_path is not None and os.path.isfile(file_path)
 
     return DownloadStatus(
         task_id=row.id,
@@ -163,7 +164,7 @@ def _row_to_status(row: DownloadTask, *, check_file: bool = False) -> DownloadSt
         video_ids=video_ids,
         created_at=_ensure_utc(row.created_at),
         completed_at=_ensure_utc(row.completed_at),
-        cached=row.cache_source_task_id is not None,
+        cached=row.is_cache_hit,
         file_exists=file_exists,
     )
 
@@ -198,21 +199,19 @@ async def get_task_for_user(
     return row
 
 
-async def resolve_file_task_id(
+async def resolve_shared_file_dir(
     task_id: str,
     user_id: int,
     db: AsyncSession,
 ) -> str | None:
-    """Return the task ID whose directory holds the actual files.
+    """Return the uploads directory path for the SharedFile linked to this task.
 
-    For cache-hit tasks this is ``cache_source_task_id``; for normal tasks
-    it is the task ID itself.  Returns ``None`` if the task is not found or
-    not owned by the user.
+    Returns None if task not found, not owned by user, or has no shared_file_id yet.
     """
     row = await get_task_for_user(task_id, user_id, db)
-    if row is None:
+    if row is None or row.shared_file_id is None:
         return None
-    return row.cache_source_task_id or task_id
+    return os.path.join(settings.UPLOAD_DIR, row.shared_file_id)
 
 
 # ---------------------------------------------------------------------------
@@ -591,22 +590,8 @@ async def create_task(
     request: DownloadRequest,
     db: AsyncSession,
     video_id: str | None = None,
-    cache_source_task_id: str | None = None,
 ) -> DownloadStatus:
-    """Persist a new task row and register it in the in-memory cache.
-
-    Parameters
-    ----------
-    video_id:
-        Pre-computed cache key to associate with this task.  For single-video
-        downloads this is the YouTube video ID; for playlists it is the SHA-1
-        hash returned by :func:`compute_playlist_cache_key`.
-    cache_source_task_id:
-        If this task is a watcher (dedup join), the ID of the source task
-        whose files will be served.
-
-    Returns the initial :class:`DownloadStatus`.
-    """
+    """Persist a new pending task row and register it in the in-memory cache."""
     video_ids_json: str | None = None
     if request.video_ids:
         video_ids_json = json.dumps(request.video_ids)
@@ -622,7 +607,6 @@ async def create_task(
         quality=request.quality,
         video_ids=video_ids_json,
         video_id=video_id,
-        cache_source_task_id=cache_source_task_id,
     )
     db.add(row)
     await db.commit()
@@ -710,6 +694,14 @@ async def wait_for_source_task(
             continue
 
         if source.status == "ready":
+            # Read shared_file_id from source task in DB
+            source_shared_file_id: str | None = None
+            async with async_session() as db_inner:
+                sf_result = await db_inner.execute(
+                    select(DownloadTask.shared_file_id).where(DownloadTask.id == source_task_id)
+                )
+                source_shared_file_id = sf_result.scalar_one_or_none()
+
             completed_now = datetime.now(timezone.utc)
             _update_active_task(
                 watcher_task_id,
@@ -726,13 +718,15 @@ async def wait_for_source_task(
                 progress=100.0,
                 filename=source.filename,
                 file_size=source.file_size,
+                shared_file_id=source_shared_file_id,
                 completed_at=completed_now,
             )
             logger.info(
-                "Watcher task %s resolved via source %s: %s",
+                "Watcher task %s resolved via source %s: %s (shared_file_id=%s)",
                 watcher_task_id,
                 source_task_id,
                 source.filename,
+                source_shared_file_id,
             )
             return
 
@@ -775,65 +769,36 @@ async def wait_for_source_task(
     )
 
 
-async def find_cached_task(
+async def find_cached_shared_file(
     video_id: str,
     fmt: str,
     quality: str,
     db: AsyncSession,
-) -> DownloadTask | None:
-    """Look up an existing ready task that can be reused as a cache hit.
+) -> SharedFile | None:
+    """Look up an existing SharedFile that can be reused as a cache hit.
 
-    A task qualifies when:
-    - ``video_id`` matches exactly
-    - ``format`` and ``quality`` match
-    - ``status`` is ``"ready"``
-    - The file still exists on disk
-
-    Cache-hit tasks that themselves point to another source
-    (``cache_source_task_id`` is not None) are followed one level deep so
-    that the file-serving logic always ends up at the original task directory.
-
-    Returns ``None`` when no suitable cached task is found.
+    Returns the most recently created SharedFile matching video_id+format+quality
+    that expires more than 5 minutes from now and has its file still on disk.
     """
+    min_expires = datetime.now(timezone.utc) + timedelta(minutes=5)
+    # SQLite stores datetimes as naive strings — compare without tz
+    min_expires_naive = min_expires.replace(tzinfo=None)
+
     result = await db.execute(
-        select(DownloadTask).where(
-            DownloadTask.video_id == video_id,
-            DownloadTask.format == fmt,
-            DownloadTask.quality == quality,
-            DownloadTask.status == "ready",
-        ).order_by(DownloadTask.created_at.desc()).limit(10)
+        select(SharedFile).where(
+            SharedFile.video_id == video_id,
+            SharedFile.format == fmt,
+            SharedFile.quality == quality,
+            SharedFile.expires_at > min_expires_naive,
+        ).order_by(SharedFile.created_at.desc()).limit(5)
     )
     candidates = result.scalars().all()
 
-    for candidate in candidates:
-        # Resolve one level of indirection so we always check the source files
-        source_task = candidate
-        if candidate.cache_source_task_id:
-            src_result = await db.execute(
-                select(DownloadTask).where(DownloadTask.id == candidate.cache_source_task_id)
-            )
-            resolved = src_result.scalar_one_or_none()
-            if resolved is not None and resolved.status == "ready":
-                source_task = resolved
-            else:
-                # Source no longer valid — skip this candidate
-                continue
-
-        if not source_task.filename:
-            continue
-
-        # Verify the file is still on disk
-        task_dir = os.path.join(settings.UPLOAD_DIR, source_task.id)
-        file_path = locate_task_file(task_dir, source_task.filename)
+    for sf in candidates:
+        shared_dir = os.path.join(settings.UPLOAD_DIR, sf.id)
+        file_path = locate_task_file(shared_dir, sf.filename)
         if file_path and os.path.isfile(file_path):
-            # Skip tasks with less than 5 minutes of TTL remaining to avoid
-            # returning a cached task whose file will be deleted very soon
-            completed_dt = _ensure_utc(source_task.completed_at)
-            if completed_dt is not None:
-                age_s = (datetime.now(timezone.utc) - completed_dt).total_seconds()
-                if age_s > settings.FILE_TTL_HOURS * 3600 - 300:  # < 5 min remaining
-                    continue
-            return source_task
+            return sf
 
     return None
 
@@ -842,26 +807,21 @@ async def create_cached_task(
     task_id: str,
     user_id: int,
     request: DownloadRequest,
-    source_task: DownloadTask,
+    shared_file: SharedFile,
     video_id: str | None,
     db: AsyncSession,
 ) -> DownloadStatus:
-    """Persist a cache-hit task row that re-uses another task's files.
+    """Persist a cache-hit task row that re-uses an existing SharedFile.
 
-    The new row is created with ``status="ready"`` immediately — no download
-    is queued.  ``cache_source_task_id`` is set so the file endpoint knows
-    which directory to serve files from.
-
-    Returns the :class:`DownloadStatus` for the new task.
+    Status is set to "ready" immediately — no download is queued.
+    completed_at inherits shared_file.created_at so the frontend TTL countdown
+    reflects the actual time remaining on the cached file.
     """
     video_ids_json: str | None = None
     if request.video_ids:
         video_ids_json = json.dumps(request.video_ids)
 
-    # Inherit the original task's completed_at so the frontend expiry countdown
-    # reflects how much time is genuinely left on the cached file, not a fresh
-    # 1-hour window from the moment of the cache hit.
-    inherited_completed_at = source_task.completed_at or datetime.now(timezone.utc)
+    inherited_completed_at = _ensure_utc(shared_file.created_at) or datetime.now(timezone.utc)
 
     row = DownloadTask(
         id=task_id,
@@ -869,23 +829,22 @@ async def create_cached_task(
         status="ready",
         progress=100.0,
         url=request.url,
-        title=source_task.title or request.title,
+        title=shared_file.title or request.title,
         format=request.format,
         quality=request.quality,
         video_ids=video_ids_json,
         video_id=video_id,
-        filename=source_task.filename,
-        file_size=source_task.file_size,
-        cache_source_task_id=source_task.id,
+        filename=shared_file.filename,
+        file_size=shared_file.file_size,
+        shared_file_id=shared_file.id,
+        is_cache_hit=True,
         completed_at=inherited_completed_at,
     )
     db.add(row)
     await db.commit()
     await db.refresh(row)
 
-    status = _row_to_status(row)
-    # Cache-hit tasks are immediately terminal — no need to register in _active_tasks
-    return status
+    return _row_to_status(row)
 
 
 async def get_download_progress(task_id: str) -> DownloadStatus | None:
@@ -916,8 +875,6 @@ async def get_user_tasks(user_id: int, limit: int = 50) -> list[DownloadStatus]:
     descending, capped at *limit* rows.  In-memory state for active tasks is
     merged in so progress values are accurate.
     """
-    from datetime import timedelta
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=settings.FILE_TTL_HOURS)
     cutoff_naive = cutoff.replace(tzinfo=None)
 
@@ -1052,8 +1009,6 @@ async def get_hidden_tasks(user_id: int, limit: int = 50) -> list[DownloadStatus
     files have been cleaned up from disk are excluded so the UI only shows
     items the user can actually re-download.
     """
-    from datetime import timedelta
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=settings.FILE_TTL_HOURS)
     cutoff_naive = cutoff.replace(tzinfo=None)
 
@@ -1126,15 +1081,11 @@ async def dismiss_completed_tasks(user_id: int) -> int:
 
 
 async def delete_task_permanent(task_id: str, user_id: int) -> bool:
-    """Permanently delete a download task — removes file from disk and record from DB.
+    """Delete a download task record from DB.
 
     Only allowed for terminal tasks (ready/error/cancelled).
-    Handles YouTube cache relationships:
-    - If this is a cache-hit task (cache_source_task_id set), only delete the DB
-      record — files belong to the source task.
-    - If this task is a cache source for others, null out their references but
-      do NOT delete files (other tasks still depend on them via the directory).
-    - Otherwise, delete both files and DB record.
+    SharedFile and actual files on disk are NOT touched —
+    they expire naturally after FILE_TTL_HOURS.
     """
     terminal_statuses = ("ready", "error", "cancelled")
 
@@ -1151,43 +1102,13 @@ async def delete_task_permanent(task_id: str, user_id: int) -> bool:
         if row.status not in terminal_statuses:
             return False
 
-        should_delete_files = True
-
-        # Case 1: this is a cache-hit task — files belong to the source task
-        if row.cache_source_task_id is not None:
-            should_delete_files = False
-
-        # Case 2: this task is a cache source for others
-        if should_delete_files:
-            dependents = await db.execute(
-                select(DownloadTask.id).where(
-                    DownloadTask.cache_source_task_id == task_id,
-                )
-            )
-            dependent_ids = [r[0] for r in dependents.all()]
-            if dependent_ids:
-                # Null out cache references — don't delete files
-                await db.execute(
-                    update(DownloadTask)
-                    .where(DownloadTask.cache_source_task_id == task_id)
-                    .values(cache_source_task_id=None)
-                )
-                should_delete_files = False
-
-        # Delete files from disk if appropriate
-        if should_delete_files:
-            task_dir = os.path.join(settings.UPLOAD_DIR, task_id)
-            shutil.rmtree(task_dir, ignore_errors=True)
-
-        # Remove from in-memory cache
         with _tasks_lock:
             _active_tasks.pop(task_id, None)
 
-        # Remove DB row
         await db.delete(row)
         await db.commit()
 
-    logger.info("Download task %s permanently deleted by user %d", task_id, user_id)
+    logger.info("Download task %s permanently deleted by user %d (files kept on disk)", task_id, user_id)
     return True
 
 
@@ -1195,6 +1116,7 @@ async def download_video(
     request: DownloadRequest,
     task_id: str,
     user_id: int,
+    shared_file_id: str,
 ) -> None:
     """
     Background coroutine that performs the full download pipeline.
@@ -1205,7 +1127,7 @@ async def download_video(
     url = request.url
     fmt = request.format
     quality = request.quality
-    out_dir = os.path.join(settings.UPLOAD_DIR, task_id)
+    out_dir = os.path.join(settings.UPLOAD_DIR, shared_file_id)
     os.makedirs(out_dir, exist_ok=True)
 
     try:
@@ -1301,6 +1223,27 @@ async def download_video(
 
         completed_now = datetime.now(timezone.utc)
 
+        # Compute video_id (cache key) for SharedFile
+        if request.video_ids:
+            sf_video_id = compute_playlist_cache_key(request.video_ids, fmt, quality)
+        else:
+            sf_video_id = extract_video_id(url) or shared_file_id
+
+        async with async_session() as db_sf:
+            sf = SharedFile(
+                id=shared_file_id,
+                video_id=sf_video_id,
+                format=fmt,
+                quality=quality,
+                filename=final_filename,
+                title=request.title,
+                file_size=final_file_size,
+                expires_at=completed_now + timedelta(hours=settings.FILE_TTL_HOURS),
+                created_at=completed_now,
+            )
+            db_sf.add(sf)
+            await db_sf.commit()
+
         _update_active_task(
             task_id,
             status="ready",
@@ -1318,10 +1261,11 @@ async def download_video(
             progress=100.0,
             filename=final_filename,
             file_size=final_file_size,
+            shared_file_id=shared_file_id,
             completed_at=completed_now,
         )
 
-        logger.info("Download task %s completed: %s", task_id, final_filename)
+        logger.info("Download task %s completed: %s (shared_file=%s)", task_id, final_filename, shared_file_id)
 
     except asyncio.CancelledError:
         _update_active_task(task_id, status="cancelled", error="Download was cancelled")
