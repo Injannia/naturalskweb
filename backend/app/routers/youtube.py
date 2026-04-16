@@ -367,9 +367,8 @@ async def download_file(
 
     Only works once the task status is ``ready``.
 
-    For cache-hit tasks (``cache_source_task_id`` is set) the file is served
-    from the *source* task's directory rather than the task's own directory,
-    which does not have a real download folder.
+    For all tasks the file is served from the SharedFile directory
+    (``uploads/{shared_file_id}/``), resolved via :func:`resolve_shared_file_dir`.
     """
     _require_youtube_permission(user)
 

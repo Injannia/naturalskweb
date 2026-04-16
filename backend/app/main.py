@@ -112,8 +112,19 @@ def _setup_scheduler():
         now_ts = time.time()
         max_age = settings.FILE_TTL_HOURS * 3600
 
+        # Collect known SharedFile IDs to avoid deleting active directories
+        known_sf_ids: set[str] = set()
+        try:
+            async with async_session() as db:
+                result = await db.execute(select(SharedFile.id))
+                known_sf_ids = {row[0] for row in result.all()}
+        except Exception:
+            pass  # If DB fails, skip fallback to avoid data loss
+
         for entry in os.scandir(upload_dir):
             if not entry.is_dir():
+                continue
+            if entry.name in known_sf_ids:
                 continue
             try:
                 dir_mtime = entry.stat().st_mtime
