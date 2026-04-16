@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 
-import pytest
 from sqlalchemy import select
 
 from app.models.download_task import DownloadTask
@@ -39,7 +38,6 @@ async def _insert_shared_file(db_session, *, expires_offset_hours: float = 5.0) 
     return sf
 
 
-@pytest.mark.asyncio
 async def test_cache_hit_creates_task_with_shared_file_id(db_session):
     """create_cached_task должна создать таск с shared_file_id и is_cache_hit=True."""
     sf = await _insert_shared_file(db_session)
@@ -65,7 +63,6 @@ async def test_cache_hit_creates_task_with_shared_file_id(db_session):
     assert status.cached is True
 
 
-@pytest.mark.asyncio
 async def test_permanent_delete_keeps_shared_file(db_session):
     """Удаление таска не должно трогать SharedFile."""
     sf = await _insert_shared_file(db_session)
@@ -102,7 +99,6 @@ async def test_permanent_delete_keeps_shared_file(db_session):
     assert task_result.scalar_one_or_none() is None
 
 
-@pytest.mark.asyncio
 async def test_find_cached_shared_file_returns_none_when_expired(db_session):
     """find_cached_shared_file не должна возвращать истёкший SharedFile."""
     sf = SharedFile(
@@ -127,7 +123,6 @@ async def test_find_cached_shared_file_returns_none_when_expired(db_session):
     assert result is None
 
 
-@pytest.mark.asyncio
 async def test_find_cached_shared_file_returns_none_when_file_missing(db_session):
     """find_cached_shared_file не должна возвращать SharedFile если файла нет на диске."""
     sf = await _insert_shared_file(db_session, expires_offset_hours=5.0)
