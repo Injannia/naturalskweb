@@ -1,0 +1,40 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-16-youtube-shared-cache.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: SharedFile model + DownloadTask update",
+      "status": "pending",
+      "description": "**Goal:** Создать модель SharedFile и обновить DownloadTask (убрать cache_source_task_id, добавить shared_file_id + is_cache_hit).\n\n**Files:**\n- Create: `backend/app/models/shared_file.py`\n- Modify: `backend/app/models/download_task.py`\n- Modify: `backend/app/models/__init__.py`\n\n**Acceptance Criteria:**\n- [ ] SharedFile модель с полями: id, video_id, format, quality, filename, title, file_size, expires_at, created_at\n- [ ] DownloadTask: нет cache_source_task_id, есть shared_file_id FK и is_cache_hit bool\n- [ ] SharedFile экспортируется из __init__.py\n\n```json:metadata\n{\"files\": [\"backend/app/models/shared_file.py\", \"backend/app/models/download_task.py\", \"backend/app/models/__init__.py\"], \"verifyCommand\": \"cd backend && python -c \\\"from app.models import SharedFile, DownloadTask; print('OK')\\\"\", \"acceptanceCriteria\": [\"SharedFile model exists with all fields\", \"DownloadTask has shared_file_id and is_cache_hit\", \"cache_source_task_id removed from DownloadTask\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: DB schema migration",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Обновить database.py: создать таблицу shared_files, добавить колонки shared_file_id и is_cache_hit, мигрировать существующие данные.\n\n**Files:**\n- Modify: `backend/app/core/database.py`\n\n**Acceptance Criteria:**\n- [ ] shared_files таблица создаётся при старте\n- [ ] shared_file_id и is_cache_hit колонки добавляются к download_tasks\n- [ ] Существующие ready-таски получают SharedFile записи\n\n```json:metadata\n{\"files\": [\"backend/app/core/database.py\"], \"verifyCommand\": \"cd backend && python -c \\\"import asyncio; from app.core.database import create_tables; asyncio.run(create_tables()); print('OK')\\\"\", \"acceptanceCriteria\": [\"shared_files table created\", \"shared_file_id column in download_tasks\", \"is_cache_hit column in download_tasks\", \"data migration runs without error\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: youtube_service.py rewrite",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** Переписать сервисный слой — кэш через SharedFile, файлы в uploads/{shared_file_id}/, permanent delete без удаления файлов.\n\n**Files:**\n- Modify: `backend/app/services/youtube_service.py`\n\n**Acceptance Criteria:**\n- [ ] find_cached_shared_file() ищет в таблице shared_files\n- [ ] create_cached_task() принимает SharedFile вместо DownloadTask\n- [ ] download_video() принимает shared_file_id, пишет файлы в uploads/{shared_file_id}/\n- [ ] download_video() создаёт SharedFile запись при завершении\n- [ ] wait_for_source_task() ставит shared_file_id на watcher при готовности source\n- [ ] delete_task_permanent() удаляет только запись задачи\n- [ ] resolve_shared_file_dir() заменяет resolve_file_task_id()\n\n```json:metadata\n{\"files\": [\"backend/app/services/youtube_service.py\"], \"verifyCommand\": \"cd backend && python -c \\\"from app.services import youtube_service; print('OK')\\\"\", \"acceptanceCriteria\": [\"find_cached_shared_file returns SharedFile\", \"download_video accepts shared_file_id param\", \"delete_task_permanent only deletes task row\", \"resolve_shared_file_dir replaces resolve_file_task_id\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Router + scheduler update",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** Обновить роутер (download_file, start_download, retry_download) и планировщик в main.py.\n\n**Files:**\n- Modify: `backend/app/routers/youtube.py`\n- Modify: `backend/app/main.py`\n\n**Acceptance Criteria:**\n- [ ] download_file использует resolve_shared_file_dir()\n- [ ] start_download генерирует shared_file_id и передаёт в download_video\n- [ ] retry_download аналогично start_download\n- [ ] cleanup_expired_files удаляет SharedFile записи по expires_at\n\n```json:metadata\n{\"files\": [\"backend/app/routers/youtube.py\", \"backend/app/main.py\"], \"verifyCommand\": \"cd backend && python -c \\\"from app.routers import youtube; from app.main import app; print('OK')\\\"\", \"acceptanceCriteria\": [\"router imports compile\", \"main.py imports compile\", \"cleanup uses SharedFile.expires_at\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Integration tests",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** Написать тесты для ключевой логики кэша.\n\n**Files:**\n- Create: `backend/tests/__init__.py`\n- Create: `backend/tests/conftest.py`\n- Create: `backend/tests/test_youtube_shared_cache.py`\n\n**Acceptance Criteria:**\n- [ ] test_cache_hit_creates_task_with_shared_file_id\n- [ ] test_permanent_delete_keeps_shared_file\n- [ ] test_find_cached_shared_file_returns_none_when_expired\n- [ ] pytest проходит без ошибок\n\n```json:metadata\n{\"files\": [\"backend/tests/__init__.py\", \"backend/tests/conftest.py\", \"backend/tests/test_youtube_shared_cache.py\"], \"verifyCommand\": \"cd backend && pytest tests/test_youtube_shared_cache.py -v\", \"acceptanceCriteria\": [\"all 4 tests pass\", \"no import errors\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-16T03:41:00Z"
+}
