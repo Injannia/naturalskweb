@@ -34,12 +34,13 @@ class DownloadTask(Base):
     # JSON-encoded list of video IDs for playlist partial downloads; NULL = all
     video_ids: Mapped[str | None] = mapped_column(String(4096), nullable=True)
 
-    # Cache fields — video_id enables cache lookups; cache_source_task_id points
-    # to the original task whose files are re-used by a cache-hit task.
+    # Cache fields — video_id enables cache lookups; shared_file_id points to
+    # the SharedFile record whose file is re-used by a cache-hit task.
     # For playlists, video_id stores a deterministic hash of sorted video IDs +
     # format + quality so it uniquely identifies the cached output.
     video_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    cache_source_task_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    shared_file_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    is_cache_hit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
 
     # Soft-delete flag: hidden tasks are excluded from list responses
     hidden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
