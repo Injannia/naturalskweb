@@ -65,65 +65,63 @@ def _setup_scheduler():
 
     scheduler = AsyncIOScheduler()
 
-    async def cleanup_expired_files():
-        import time
-        from sqlalchemy import select
+    async def cleanup_expired_shared_files():
+        """Delete expired SharedFile records and their upload directories."""
+        import shutil
+        from datetime import datetime, timezone
+        from sqlalchemy import select, update as sa_update
+        from app.models.shared_file import SharedFile
         from app.models.download_task import DownloadTask
 
+        now = datetime.now(timezone.utc)
+        now_naive = now.replace(tzinfo=None)
+
+        try:
+            async with async_session() as db:
+                result = await db.execute(
+                    select(SharedFile).where(SharedFile.expires_at < now_naive)
+                )
+                expired = result.scalars().all()
+
+                for sf in expired:
+                    shared_dir = os.path.join(settings.UPLOAD_DIR, sf.id)
+                    if os.path.isdir(shared_dir):
+                        shutil.rmtree(shared_dir, ignore_errors=True)
+                        logger.info("Cleanup: removed shared dir %s (file: %s)", sf.id, sf.filename)
+                    # Null out task references (SQLite FK not enforced)
+                    await db.execute(
+                        sa_update(DownloadTask)
+                        .where(DownloadTask.shared_file_id == sf.id)
+                        .values(shared_file_id=None)
+                    )
+                    await db.delete(sf)
+
+                if expired:
+                    await db.commit()
+                    logger.info("Cleanup: removed %d expired SharedFile records", len(expired))
+
+        except Exception as exc:
+            logger.warning("cleanup_expired_shared_files failed: %s", exc)
+
+        # Fallback: scan for orphaned upload directories (no SharedFile record)
         upload_dir = settings.UPLOAD_DIR
         if not os.path.exists(upload_dir):
             return
-        now = time.time()
-        max_age = settings.FILE_TTL_HOURS * 3600
 
-        # Build a set of task IDs whose files are still referenced by at least
-        # one non-expired cache-hit task.  We do not delete files belonging to
-        # these source tasks even if the source task itself has aged out,
-        # because the cache-hit tasks would lose their files too.
-        protected_task_ids: set[str] = set()
-        try:
-            cutoff_ts = now - max_age
-            import datetime as _dt
-            cutoff_dt = _dt.datetime.fromtimestamp(cutoff_ts, tz=_dt.timezone.utc)
-            cutoff_dt_naive = _dt.datetime.utcfromtimestamp(cutoff_ts)  # naive UTC for SQLite
-            async with async_session() as db:
-                result = await db.execute(
-                    select(DownloadTask.cache_source_task_id)
-                    .where(
-                        DownloadTask.cache_source_task_id.isnot(None),
-                        DownloadTask.created_at >= cutoff_dt_naive,
-                        DownloadTask.status == "ready",
-                    )
-                )
-                for (src_id,) in result.all():
-                    if src_id:
-                        protected_task_ids.add(src_id)
-        except Exception as exc:
-            logger.warning("cleanup: could not build protected task set: %s", exc)
+        import time
+        now_ts = time.time()
+        max_age = settings.FILE_TTL_HOURS * 3600
 
         for entry in os.scandir(upload_dir):
             if not entry.is_dir():
                 continue
-            task_id = entry.name
-            # Never remove the directory of a task that is still referenced by
-            # an active cache-hit task within the retention window.
-            if task_id in protected_task_ids:
-                continue
-            for root, dirs, files in os.walk(entry.path, topdown=False):
-                for fname in files:
-                    fpath = os.path.join(root, fname)
-                    try:
-                        if now - os.path.getmtime(fpath) > max_age:
-                            os.remove(fpath)
-                            logger.info("Cleaned up expired file: %s", fpath)
-                    except OSError:
-                        pass
-                # Remove empty directories
-                try:
-                    if not os.listdir(root):
-                        os.rmdir(root)
-                except OSError:
-                    pass
+            try:
+                dir_mtime = entry.stat().st_mtime
+                if now_ts - dir_mtime > max_age:
+                    shutil.rmtree(entry.path, ignore_errors=True)
+                    logger.info("Cleanup: removed orphaned upload dir %s", entry.name)
+            except OSError:
+                pass
 
     async def reset_daily_usage():
         async with async_session() as db:
@@ -190,7 +188,7 @@ def _setup_scheduler():
         except Exception as exc:
             logger.warning("cleanup_stale_pending_tasks failed: %s", exc)
 
-    scheduler.add_job(cleanup_expired_files, "interval", minutes=30, id="cleanup")
+    scheduler.add_job(cleanup_expired_shared_files, "interval", minutes=30, id="cleanup")
     scheduler.add_job(reset_daily_usage, "cron", hour=0, minute=0, id="reset_usage")
     scheduler.add_job(cleanup_stale_pending_tasks, "interval", minutes=30, id="cleanup_stale_pending")
     scheduler.start()

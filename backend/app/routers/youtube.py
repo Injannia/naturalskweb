@@ -200,30 +200,26 @@ async def start_download(
     # Cache lookup (skipped when force_download=True or key unavailable)
     # ------------------------------------------------------------------
     if cache_key and not body.force_download:
-        cached_source = await youtube_service.find_cached_task(
+        cached_sf = await youtube_service.find_cached_shared_file(
             video_id=cache_key,
             fmt=body.format,
             quality=body.quality,
             db=db,
         )
-        if cached_source is not None:
+        if cached_sf is not None:
             task_id = str(uuid.uuid4())
             cached_status = await youtube_service.create_cached_task(
                 task_id=task_id,
                 user_id=user.id,
                 request=body,
-                source_task=cached_source,
+                shared_file=cached_sf,
                 video_id=cache_key,
                 db=db,
             )
             await _increment_usage(user, db)
             logger.info(
-                "Cache hit: task %s for user %d reuses files from task %s (format=%s quality=%s)",
-                task_id,
-                user.id,
-                cached_source.id,
-                body.format,
-                body.quality,
+                "Cache hit: task %s for user %d reuses SharedFile %s (format=%s quality=%s)",
+                task_id, user.id, cached_sf.id, body.format, body.quality,
             )
             return cached_status
 
@@ -245,7 +241,6 @@ async def start_download(
                 request=body,
                 db=db,
                 video_id=cache_key,
-                cache_source_task_id=in_progress.id,
             )
 
             await _increment_usage(user, db)
@@ -270,6 +265,7 @@ async def start_download(
     # Cache miss — start a real download
     # ------------------------------------------------------------------
     task_id = str(uuid.uuid4())
+    shared_file_id = str(uuid.uuid4())
     initial_status = await youtube_service.create_task(
         task_id=task_id,
         user_id=user.id,
@@ -285,15 +281,12 @@ async def start_download(
         request=body,
         task_id=task_id,
         user_id=user.id,
+        shared_file_id=shared_file_id,
     )
 
     logger.info(
-        "Download task %s enqueued by user %d (format=%s quality=%s cache_key=%s)",
-        task_id,
-        user.id,
-        body.format,
-        body.quality,
-        cache_key,
+        "Download task %s enqueued by user %d (format=%s quality=%s cache_key=%s shared_file=%s)",
+        task_id, user.id, body.format, body.quality, cache_key, shared_file_id,
     )
 
     return initial_status
@@ -399,18 +392,15 @@ async def download_file(
             detail="Задача завершена, но имя файла отсутствует",
         )
 
-    # Resolve cache indirection: if this task was a cache hit, serve files
-    # from the original task's directory.
-    file_dir_task_id = await youtube_service.resolve_file_task_id(task_id, user.id, db)
-    if file_dir_task_id is None:
+    # Resolve the shared file directory for this task.
+    shared_file_dir = await youtube_service.resolve_shared_file_dir(task_id, user.id, db)
+    if shared_file_dir is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Задача не найдена или истекла",
+            detail="Задача не найдена или файл ещё не готов",
         )
 
-    task_dir = os.path.join(settings.UPLOAD_DIR, file_dir_task_id)
-    # ZIP files land directly in task_dir; single-video files may be in a subdir.
-    file_path = locate_task_file(task_dir, task.filename)
+    file_path = locate_task_file(shared_file_dir, task.filename)
 
     if not file_path or not os.path.isfile(file_path):
         raise HTTPException(
@@ -602,29 +592,26 @@ async def retry_download(
     # Cache lookup — serve from an existing ready task if available
     # ------------------------------------------------------------------
     if cache_key:
-        cached_source = await youtube_service.find_cached_task(
+        cached_sf = await youtube_service.find_cached_shared_file(
             video_id=cache_key,
             fmt=retry_request.format,
             quality=retry_request.quality,
             db=db,
         )
-        if cached_source is not None:
+        if cached_sf is not None:
             new_task_id = str(uuid.uuid4())
             cached_status = await youtube_service.create_cached_task(
                 task_id=new_task_id,
                 user_id=user.id,
                 request=retry_request,
-                source_task=cached_source,
+                shared_file=cached_sf,
                 video_id=cache_key,
                 db=db,
             )
             await _increment_usage(user, db)
             logger.info(
-                "Retry cache hit: task %s for user %d reuses files from task %s (original=%s)",
-                new_task_id,
-                user.id,
-                cached_source.id,
-                task_id,
+                "Retry cache hit: task %s for user %d reuses SharedFile %s (original=%s)",
+                new_task_id, user.id, cached_sf.id, task_id,
             )
             return cached_status
 
@@ -646,7 +633,6 @@ async def retry_download(
                 request=retry_request,
                 db=db,
                 video_id=cache_key,
-                cache_source_task_id=in_progress.id,
             )
 
             await _increment_usage(user, db)
@@ -670,6 +656,7 @@ async def retry_download(
     # Cache miss — start a fresh download
     # ------------------------------------------------------------------
     new_task_id = str(uuid.uuid4())
+    shared_file_id = str(uuid.uuid4())
     new_status = await youtube_service.create_task(
         task_id=new_task_id,
         user_id=user.id,
@@ -685,13 +672,12 @@ async def retry_download(
         request=retry_request,
         task_id=new_task_id,
         user_id=user.id,
+        shared_file_id=shared_file_id,
     )
 
     logger.info(
-        "Retry task %s created by user %d for original task %s",
-        new_task_id,
-        user.id,
-        task_id,
+        "Retry task %s created by user %d for original task %s (shared_file=%s)",
+        new_task_id, user.id, task_id, shared_file_id,
     )
 
     return new_status
