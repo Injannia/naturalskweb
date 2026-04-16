@@ -1,0 +1,256 @@
+/* ── ConvertSettings panel ───────────────────────────────────────────────────
+   Rendered directly below a FileItem card. The top border and slightly darker
+   background signal that it belongs to the file above without a separate
+   container element.
+──────────────────────────────────────────────────────────────────────────── */
+
+.panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  /* slideDown is defined in global.css */
+  animation: slideDown var(--transition-base) both;
+}
+
+/* ── Section heading ── */
+.heading {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+  margin-bottom: var(--space-4);
+}
+
+/* ── Settings grid — two columns on wider screens ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Label + control row ── */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rowLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+
+.rowControl {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Shared select styling (matches qualitySelect in DownloadOptions) ── */
+.select {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  padding-right: var(--space-8);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  appearance: none;
+  /* chevron-down encoded inline so there is no external icon dependency */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238888a0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}
+
+.select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* ── Number input (image width / height) ── */
+.numberInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  /* Remove browser default spin-buttons — the field already has a placeholder */
+  -moz-appearance: textfield;
+}
+
+.numberInput::-webkit-inner-spin-button,
+.numberInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.numberInput::placeholder {
+  color: var(--text-muted);
+}
+
+.numberInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.numberInput:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Quality slider (image category) ── */
+.sliderWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.slider {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  /* Dynamic gradient fill is handled via the --slider-fill trick below — we
+     set it statically to accent since JS would require an inline style, which
+     the project discourages except for dynamically computed values. The track
+     colour is close enough to communicate the control. */
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--slider-pct, 85%),
+    var(--border) var(--slider-pct, 85%),
+    var(--border) 100%
+  );
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-input);
+  cursor: pointer;
+  box-shadow: 0 0 0 0 var(--accent-glow);
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-input);
+  cursor: pointer;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.slider:hover::-webkit-slider-thumb,
+.slider:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.slider:hover::-moz-range-thumb,
+.slider:active::-moz-range-thumb {
+  transform: scale(1.2);
+}
+
+.slider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Numeric readout next to the slider */
+.sliderValue {
+  min-width: 2.4ch;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Checkbox row (keep aspect ratio) ── */
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Spans both grid columns so it sits below the dimension inputs */
+  grid-column: 1 / -1;
+  padding-top: var(--space-1);
+}
+
+.checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkboxLabel {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+}
+
+/* ── Document placeholder ── */
+.noSettings {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-style: italic;
+  padding: var(--space-2) 0;
+}

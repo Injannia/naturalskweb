@@ -1,0 +1,175 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.playlistTitle {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.playlistMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* Aggregated stats row (total duration, estimated size) */
+.playlistStats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.statItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.statItem svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* Visually separate the estimated size with a dot divider */
+.statItem + .statItem::before {
+  content: '·';
+  margin-right: var(--space-1);
+  color: var(--border);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.selectedCount {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.selectedCountAccent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.btnText {
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btnText:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.videoList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+
+  /*
+   * Pure-CSS scroll shadows using the background-attachment: local trick.
+   *
+   * Four gradient layers are stacked (top to bottom in declaration order):
+   *
+   * 1 & 2 — "cover" gradients (background-attachment: scroll):
+   *   These are anchored to the element's viewport, not the scroll content.
+   *   They paint over the shadow layers below whenever the list is scrolled
+   *   to the very top or bottom, effectively hiding the shadow at the edges.
+   *
+   * 3 & 4 — "shadow" gradients (background-attachment: local):
+   *   These scroll with the content. When the top of the content is in view,
+   *   layer 1 covers layer 3 (no top shadow visible). As the user scrolls
+   *   down, layer 3 moves out from under layer 1 and the top shadow appears.
+   *   The same logic applies in reverse for the bottom shadow (layers 2 & 4).
+   *
+   * Colors are chosen to match the dark military-black card background so the
+   * fade looks native to the design rather than decorative.
+   */
+  background:
+    /* Cover top — hides top shadow when scrolled to top */
+    linear-gradient(
+      to bottom,
+      var(--bg-card) 0%,
+      transparent 100%
+    ) top / 100% 32px no-repeat scroll,
+
+    /* Cover bottom — hides bottom shadow when scrolled to bottom */
+    linear-gradient(
+      to top,
+      var(--bg-card) 0%,
+      transparent 100%
+    ) bottom / 100% 32px no-repeat scroll,
+
+    /* Shadow top — revealed as user scrolls down */
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.35) 0%,
+      transparent 100%
+    ) top / 100% 40px no-repeat local,
+
+    /* Shadow bottom — revealed as user scrolls up from the bottom */
+    linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.35) 0%,
+      transparent 100%
+    ) bottom / 100% 40px no-repeat local;
+}
+
+@media (max-width: 600px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

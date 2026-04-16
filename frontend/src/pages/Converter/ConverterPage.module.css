@@ -1,0 +1,383 @@
+/* ── ConverterPage layout ── */
+/* Follows the same structural patterns as YouTubePage.module.css */
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  animation: fadeIn 0.4s ease;
+}
+
+/* ── Page header ── */
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quotaBadge {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-3);
+  white-space: nowrap;
+}
+
+.pageSubtitle {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  /* Offset matches the icon+gap width in .pageTitle */
+  margin-left: calc(var(--space-3) + 24px);
+}
+
+/* ── Shared section chrome ── */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+  /* Push action buttons to the right */
+  flex: 1;
+}
+
+/* Small count pill — same style as YouTubePage .downloadCount */
+.countBadge {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(88, 101, 242, 0.2);
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Upload queue section ── */
+
+.queueSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: slideUp 0.3s ease;
+}
+
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Wraps FileItem + optional ConvertSettings panel */
+.fileItemWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.queueActions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: var(--space-1);
+}
+
+/* Primary action: start conversion */
+.convertBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.convertBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.convertBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.convertBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary action: clear upload list */
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+  /* Push to the end of the header row */
+  margin-left: auto;
+}
+
+.clearBtn:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.clearBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Active tasks section ── */
+
+.tasksSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ZIP download button for completed batches */
+.zipBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--success-bg);
+  border: 1px solid rgba(67, 181, 129, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.zipBtn:hover:not(:disabled) {
+  background: rgba(67, 181, 129, 0.2);
+  border-color: rgba(67, 181, 129, 0.4);
+}
+
+.zipBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Inline text button — mirrors YouTubePage .clearCompletedBtn */
+.clearCompletedBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color var(--transition-fast);
+}
+
+.clearCompletedBtn:hover {
+  color: var(--text-secondary);
+}
+
+/* ── History section — mirrors YouTubePage ── */
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.historyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  align-self: flex-start;
+}
+
+.historyToggle:hover {
+  color: var(--text-secondary);
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: slideDown 0.2s ease;
+}
+
+/* ── Empty state ── */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  /* Subtle — this section is secondary to the drop zone above */
+  opacity: 0.55;
+}
+
+.emptyIcon {
+  color: var(--text-muted);
+}
+
+.emptyText {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin: 0;
+}
+
+/* ── Spinning icon (used on the convert button while loading) ── */
+
+.iconSpin {
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Animations ── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+  .pageTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .pageSubtitle {
+    margin-left: 0;
+  }
+
+  .sectionHeader {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+
+  .queueActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .convertBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .clearBtn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}

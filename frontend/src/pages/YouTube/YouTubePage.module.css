@@ -1,0 +1,665 @@
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  animation: fadeIn 0.4s ease;
+}
+
+/* ── Page header ── */
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Row that holds the title and the quota badge side by side */
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Task 6: quota counter */
+.quotaBadge {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-3);
+  white-space: nowrap;
+}
+
+.pageSubtitle {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  margin-left: calc(var(--space-3) + 24px); /* icon offset */
+}
+
+/* ── URL input card ── */
+.inputCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Drag-and-drop highlight applied to .inputCard while a URL is being dragged over it */
+.dragOver {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 8%);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.inputRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.inputWrap {
+  position: relative;
+  flex: 1;
+}
+
+.urlIcon {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  width: 18px;
+  height: 18px;
+}
+
+.urlInput {
+  width: 100%;
+  /* Right padding leaves room for two icon buttons (paste + clear) */
+  padding: var(--space-3) calc(var(--space-3) + 64px) var(--space-3) var(--space-10);
+  background: var(--bg-input, #0e0e16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+
+.urlInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.urlInput::placeholder {
+  color: var(--text-muted);
+}
+
+.urlInput.inputError {
+  border-color: var(--danger);
+}
+
+.urlInput.inputError:focus {
+  box-shadow: 0 0 0 3px rgba(240, 71, 71, 0.15);
+}
+
+/* Task 3 & 4: paste and clear icon buttons inside the input */
+.inputActionBtn {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.inputActionBtn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+/* When both buttons are visible, the clear button shifts left of the paste button */
+.inputClearBtn {
+  right: calc(var(--space-3) + 30px);
+}
+
+.getInfoBtn {
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.getInfoBtn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.getInfoBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.getInfoBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Task 8: keyboard shortcut hint inside the button */
+.kbdHint {
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  line-height: 1;
+  /* Do not show while loading — parent hides it via conditional render */
+}
+
+.validationError {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  animation: slideDown 0.2s ease;
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── Loading state ── */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-10);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.loadingSpinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(88, 101, 242, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loadingText {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ── Results section ── */
+.resultsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  animation: slideUp 0.35s ease;
+}
+
+.sectionTitle {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+}
+
+/* ── Active downloads ── */
+.downloadsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.downloadsHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+}
+
+.downloadCount {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(88, 101, 242, 0.2);
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.downloadsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Inline text button for clearing all terminal tasks */
+.clearCompletedBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color var(--transition-fast);
+}
+
+.clearCompletedBtn:hover {
+  color: var(--text-secondary);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Large-playlist download confirmation ── */
+.confirmationBox {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4) var(--space-5);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  animation: slideDown 0.2s ease;
+}
+
+.confirmationIcon {
+  color: var(--warning);
+  flex-shrink: 0;
+  margin-top: 1px; /* optical alignment with first line of text */
+}
+
+.confirmationBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.confirmationMessage {
+  font-size: var(--fs-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.confirmationActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.confirmBtn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--warning);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.confirmBtn:hover {
+  opacity: 0.85;
+}
+
+.confirmBtn:focus-visible {
+  outline: 2px solid var(--warning);
+  outline-offset: 2px;
+}
+
+.cancelConfirmBtn {
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.cancelConfirmBtn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.cancelConfirmBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Download history panel ── */
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Toggle button that reveals the history list */
+.historyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  /* Align with section headers above */
+  align-self: flex-start;
+}
+
+.historyToggle:hover {
+  color: var(--text-secondary);
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: slideDown 0.2s ease;
+}
+
+.historyItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  /* Slightly muted — history is secondary content */
+  opacity: 0.85;
+  transition: opacity var(--transition-fast);
+}
+
+.historyItem:hover {
+  opacity: 1;
+}
+
+.historyMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.historyTitle {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.historyDetails {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.historyActions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.historyBtnDownload {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: var(--success-bg);
+  border: 1px solid rgba(67, 181, 129, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.historyBtnDownload:hover:not(:disabled) {
+  background: rgba(67, 181, 129, 0.2);
+  border-color: rgba(67, 181, 129, 0.4);
+}
+
+.historyBtnDownload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.historyBtnRestore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.historyBtnRestore:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.historyBtnRestore:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── File existence labels in history ── */
+
+.fileExistsLabel {
+  color: var(--success);
+}
+
+.fileGoneLabel {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ── History delete button ── */
+
+.historyBtnDelete {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.historyBtnDelete:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.historyBtnDelete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.iconSpin {
+  animation: spin 0.6s linear infinite;
+}
+
+@media (max-width: 600px) {
+  .inputRow {
+    flex-direction: column;
+  }
+
+  .getInfoBtn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pageSubtitle {
+    margin-left: 0;
+  }
+
+  .kbdHint {
+    display: none;
+  }
+
+  .pageTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .historyItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .historyActions {
+    width: 100%;
+  }
+
+  .historyBtnDownload,
+  .historyBtnRestore,
+  .historyBtnDelete {
+    flex: 1;
+    justify-content: center;
+  }
+}

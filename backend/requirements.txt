@@ -1,0 +1,21 @@
+# External binary dependencies (not pip packages):
+# - ffmpeg 6.x+ (must be in system PATH) — required for audio conversion (mp3/wav)
+# - LibreOffice 7.x+ (headless) — required for document conversion (Phase 3)
+
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+pyjwt>=2.8.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+apscheduler>=3.10.0
+aiosqlite>=0.19.0
+bcrypt>=4.0.0
+yt-dlp>=2024.1.0
+Pillow>=10.0.0
+rembg[cpu]>=2.0.50
+opencv-python-headless>=4.8.0
+numpy>=1.24.0

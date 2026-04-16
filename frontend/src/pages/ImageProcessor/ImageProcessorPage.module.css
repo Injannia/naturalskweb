@@ -1,0 +1,165 @@
+/* ── ImageProcessorPage layout ── */
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  animation: fadeIn 0.4s ease;
+}
+
+/* ── Page header ── */
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quotaBadge {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-3);
+  white-space: nowrap;
+}
+
+/* ── Tabs ── */
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+}
+
+.tab,
+.tabActive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex: 1;
+  justify-content: center;
+}
+
+.tab {
+  background: none;
+  color: var(--text-muted);
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.tabActive {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Content area ── */
+
+.content {
+  min-height: 200px;
+}
+
+/* ── History toggle ── */
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.historyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  align-self: flex-start;
+}
+
+.historyToggle:hover {
+  color: var(--text-secondary);
+}
+
+.countBadge {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(88, 101, 242, 0.2);
+  border-radius: var(--radius-full);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Animations ── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+  .pageTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab,
+  .tabActive {
+    width: 100%;
+  }
+}

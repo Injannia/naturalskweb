@@ -1,0 +1,148 @@
+/* ── ImageUploader styles ── */
+
+.dropZone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: var(--space-8) var(--space-6);
+
+  background: var(--bg-card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+
+  transition:
+    border-color var(--transition-base),
+    background var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.dropZone:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.dropZone:hover:not(.disabled) {
+  border-color: var(--border-focus);
+  background: color-mix(in srgb, var(--bg-card) 97%, var(--accent) 3%);
+}
+
+.dragOver {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 8%);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Hidden native file input ── */
+.hiddenInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Inner content layout ── */
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── Icon wrapper ── */
+.iconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+
+  transition:
+    color var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-base);
+}
+
+.iconWrapActive {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ── Text elements ── */
+.mainText {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subText {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.hint {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+/* ── Upload progress bar ── */
+.progressBar {
+  width: 200px;
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-2);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-fast);
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .dropZone {
+    min-height: 140px;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .iconWrap {
+    width: 44px;
+    height: 44px;
+  }
+
+  .mainText {
+    font-size: var(--fs-sm);
+  }
+}

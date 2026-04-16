@@ -1,0 +1,417 @@
+/* ── Card container ───────────────────────────────────────────────────────── */
+
+.card {
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: slideUp 0.3s ease;
+}
+
+/* State-driven border tints */
+.card.ready {
+  border-color: rgba(67, 181, 129, 0.3);
+}
+
+.card.error {
+  border-color: rgba(240, 71, 71, 0.3);
+}
+
+.card.cancelled {
+  border-color: rgba(136, 136, 160, 0.25);
+  opacity: 0.8;
+}
+
+/* History-mode cards are slightly dimmed to visually separate them from active tasks */
+.card.history {
+  opacity: 0.75;
+}
+
+/* ── Header row ───────────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+/* Category icon wrapper — aligns the icon with the first text line */
+.categoryIcon {
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+/* "original_filename.ext → TARGET" line */
+.title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.originalName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-weight: 400;
+  padding: 0 2px;
+}
+
+.targetFormat {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+/* Secondary metadata row: badge · category · size · expiry */
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ── Status badge ─────────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgePending {
+  background: rgba(136, 136, 160, 0.15);
+  color: var(--text-secondary);
+}
+
+/* uploading shares the accent/blue palette — file is in transit */
+.badgeUploading {
+  background: rgba(88, 101, 242, 0.15);
+  color: var(--accent);
+}
+
+/* converting uses warning/amber — processing in progress */
+.badgeConverting {
+  background: rgba(250, 166, 26, 0.15);
+  color: var(--warning);
+}
+
+.badgeReady {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badgeError {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* Cancelled uses a muted grey, distinct from error */
+.badgeCancelled {
+  background: rgba(136, 136, 160, 0.12);
+  color: var(--text-muted);
+}
+
+/* ── File meta (category · size) ─────────────────────────────────────────── */
+
+.fileMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ── Expiry countdown ─────────────────────────────────────────────────────── */
+
+.expiryCountdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Turns amber when less than 1 hour remains */
+.expiryCountdown.expiryWarning {
+  color: var(--warning);
+}
+
+/* Shown in place of the countdown once the file TTL has elapsed */
+.expiryExpired {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  font-family: var(--font-mono);
+}
+
+/* ── File existence indicator ─────────────────────────────────────────────── */
+
+.fileIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+}
+
+.fileIndicator.fileExists {
+  color: var(--success);
+}
+
+.fileIndicator.fileGone {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.progressFill.ready {
+  background: var(--success);
+}
+
+.progressFill.error {
+  background: var(--danger);
+}
+
+.progressFill.cancelled {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.progressText {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  align-self: flex-end;
+}
+
+/* ── Error message ────────────────────────────────────────────────────────── */
+
+.errorMsg {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ── Action buttons ───────────────────────────────────────────────────────── */
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Download — green, primary action */
+.btnDownload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--success);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.btnDownload:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btnDownload:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cancel — outlined, turns red on hover */
+.btnCancel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnCancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* Dismiss — subtle, text-muted */
+.btnDismiss {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnDismiss:hover {
+  border-color: var(--border-focus);
+  color: var(--text-secondary);
+}
+
+/* Restore — accent-tinted, matches retry style from DownloadProgress */
+.btnRestore {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnRestore:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.btnRestore:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Permanent delete — red, danger action */
+.btnDelete {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btnDelete:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.btnDelete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Spinner animations ───────────────────────────────────────────────────── */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Small inline spinner used inside status badges for active states */
+.spinnerInline {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Applied to Lucide icon elements that should spin (e.g. Loader) */
+.iconSpin {
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
