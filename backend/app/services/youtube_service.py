@@ -694,13 +694,25 @@ async def wait_for_source_task(
             continue
 
         if source.status == "ready":
-            # Read shared_file_id from source task in DB
+            # Wait for source task's shared_file_id to be persisted
+            # (small delay possible between status=ready and shared_file_id commit)
             source_shared_file_id: str | None = None
-            async with async_session() as db_inner:
-                sf_result = await db_inner.execute(
-                    select(DownloadTask.shared_file_id).where(DownloadTask.id == source_task_id)
-                )
-                source_shared_file_id = sf_result.scalar_one_or_none()
+            for _attempt in range(5):
+                async with async_session() as db_inner:
+                    sf_result = await db_inner.execute(
+                        select(DownloadTask.shared_file_id).where(DownloadTask.id == source_task_id)
+                    )
+                    source_shared_file_id = sf_result.scalar_one_or_none()
+                if source_shared_file_id is not None:
+                    break
+                await asyncio.sleep(1.0)
+
+            if source_shared_file_id is None:
+                error_msg = "Source task completed but shared_file_id not available"
+                _update_active_task(watcher_task_id, status="error", error=error_msg)
+                await _persist_task(watcher_task_id, status="error", error=error_msg)
+                logger.warning("Watcher task %s: %s", watcher_task_id, error_msg)
+                return
 
             completed_now = datetime.now(timezone.utc)
             _update_active_task(
@@ -1268,6 +1280,9 @@ async def download_video(
         logger.info("Download task %s completed: %s (shared_file=%s)", task_id, final_filename, shared_file_id)
 
     except asyncio.CancelledError:
+        # Clean up partial files — no SharedFile record was created, so
+        # the directory would otherwise be orphaned until the fallback scanner runs.
+        shutil.rmtree(out_dir, ignore_errors=True)
         _update_active_task(task_id, status="cancelled", error="Download was cancelled")
         await _persist_task(task_id, status="cancelled", error="Download was cancelled")
         logger.info("Download task %s was cancelled", task_id)
@@ -1277,9 +1292,11 @@ async def download_video(
         # abort yt-dlp), do not overwrite the persisted "cancelled" state.
         if _is_cancelled(task_id):
             logger.info("Download task %s aborted due to cancellation: %s", task_id, exc)
+            shutil.rmtree(out_dir, ignore_errors=True)
             return
         error_msg = str(exc)
         logger.error("Download task %s failed: %s", task_id, error_msg, exc_info=True)
+        shutil.rmtree(out_dir, ignore_errors=True)
         _update_active_task(task_id, status="error", error=error_msg[:500])
         await _persist_task(task_id, status="error", error=error_msg[:500])
 
