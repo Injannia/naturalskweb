@@ -39,6 +39,8 @@ class DownloadTask(Base):
     # For playlists, video_id stores a deterministic hash of sorted video IDs +
     # format + quality so it uniquely identifies the cached output.
     video_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # No DB-level FK: SQLite does not enforce it; nulling out is handled
+    # by cleanup_expired_shared_files() in main.py when SharedFile expires.
     shared_file_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     is_cache_hit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")
 
