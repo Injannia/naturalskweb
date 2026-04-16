@@ -1,5 +1,7 @@
+import datetime as _dt
 import logging
 import os
+import uuid as _uuid
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -57,9 +59,6 @@ async def create_tables():
 
 async def _apply_migrations():
     """Add columns and tables that create_all cannot add to existing tables."""
-    import uuid
-    import datetime as _dt
-
     async with engine.begin() as conn:
         # --- download_tasks columns ---
         column_migrations = [
@@ -97,7 +96,7 @@ async def _apply_migrations():
                     title TEXT,
                     file_size INTEGER,
                     expires_at DATETIME NOT NULL,
-                    created_at DATETIME NOT NULL DEFAULT (datetime('now'))
+                    created_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S', 'now'))
                 )
             """))
             await conn.execute(text(
@@ -126,7 +125,7 @@ async def _apply_migrations():
             ttl_seconds = settings.FILE_TTL_HOURS * 3600
             for row in rows:
                 task_id, video_id, fmt, quality, filename, title, file_size, completed_at = row
-                sf_id = str(uuid.uuid4())
+                sf_id = str(_uuid.uuid4())
                 if completed_at:
                     try:
                         base = _dt.datetime.fromisoformat(str(completed_at).replace("Z", "+00:00"))
