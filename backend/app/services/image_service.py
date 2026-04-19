@@ -81,7 +81,7 @@ def _get_rembg_session():
 _LAMA_MODEL_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
 _LAMA_CACHE_DIR = Path.home() / ".cache" / "naturalskweb" / "lama"
 _LAMA_CACHE_FILE = _LAMA_CACHE_DIR / "lama_fp32.onnx"
-_LAMA_PAD_MOD = 8  # LaMa input size must be divisible by 8
+_LAMA_INPUT_SIZE = 512  # Carve/LaMa-ONNX weights are exported with fixed 512x512 inputs
 
 _lama_session = None
 _lama_lock = threading.Lock()
@@ -117,39 +117,34 @@ def _get_lama_session():
         return _lama_session
 
 
-def _pad_to_mod(arr: "np.ndarray", mod: int) -> "tuple[np.ndarray, int, int]":
-    """Pad (H, W, ...) array on right/bottom so H and W are multiples of `mod`."""
-    h, w = arr.shape[:2]
-    ph = (mod - h % mod) % mod
-    pw = (mod - w % mod) % mod
-    if ph == 0 and pw == 0:
-        return arr, 0, 0
-    pad_width = [(0, ph), (0, pw)] + [(0, 0)] * (arr.ndim - 2)
-    return np.pad(arr, pad_width, mode="edge"), ph, pw
-
-
 def _run_lama_onnx(pil_image, pil_mask):
-    """Run raw LaMa ONNX inference on (image, mask) and return result as PIL RGB.
+    """Run LaMa ONNX inference on a strictly 512x512 (image, mask) pair.
 
-    Low-level helper: no downsampling, no colour-space juggling. The wrapper
-    _inpaint_with_lama in _remove_watermark_sync handles cv2<->PIL and resize.
+    The Carve/LaMa-ONNX weights bake in 512x512 input dimensions, so callers
+    must supply exactly-square inputs at that size. The wrapper
+    _inpaint_with_lama handles cropping, resizing and paste-back.
 
-    - pil_image: RGB of any size
-    - pil_mask: L (grayscale), white = area to inpaint, black = keep
+    - pil_image: RGB at 512x512
+    - pil_mask: L (grayscale) at 512x512, white = area to inpaint, black = keep
     """
     from PIL import Image as PILImage
 
+    if pil_image.size != (_LAMA_INPUT_SIZE, _LAMA_INPUT_SIZE):
+        raise ValueError(
+            f"LaMa expects {_LAMA_INPUT_SIZE}x{_LAMA_INPUT_SIZE} RGB, got {pil_image.size}"
+        )
+    if pil_mask.size != (_LAMA_INPUT_SIZE, _LAMA_INPUT_SIZE):
+        raise ValueError(
+            f"LaMa expects {_LAMA_INPUT_SIZE}x{_LAMA_INPUT_SIZE} mask, got {pil_mask.size}"
+        )
+
     session = _get_lama_session()
-    orig_w, orig_h = pil_image.size
 
     img_arr = np.array(pil_image.convert("RGB"), dtype=np.float32) / 255.0
     mask_arr = (np.array(pil_mask.convert("L"), dtype=np.float32) > 127).astype(np.float32)
 
-    img_padded, ph, pw = _pad_to_mod(img_arr, _LAMA_PAD_MOD)
-    mask_padded, _, _ = _pad_to_mod(mask_arr, _LAMA_PAD_MOD)
-
-    img_tensor = np.transpose(img_padded, (2, 0, 1))[None, ...]         # (1, 3, H, W)
-    mask_tensor = mask_padded[None, None, ...]                          # (1, 1, H, W)
+    img_tensor = np.transpose(img_arr, (2, 0, 1))[None, ...]  # (1, 3, 512, 512)
+    mask_tensor = mask_arr[None, None, ...]                   # (1, 1, 512, 512)
 
     outputs = session.run(None, {"image": img_tensor, "mask": mask_tensor})
     out = outputs[0][0]
@@ -158,20 +153,12 @@ def _run_lama_onnx(pil_image, pil_mask):
     if out.ndim == 3 and out.shape[0] == 3:
         out = np.transpose(out, (1, 2, 0))
 
-    # Crop padding (operates on HWC).
-    out_h, out_w = out.shape[:2]
-    out = out[: out_h - ph, : out_w - pw]
-
-    # Values may be in [0, 1] or [0, 255] depending on export — normalise to [0, 255] uint8.
+    # Values may be in [0, 1] or [0, 255] depending on export — normalise to uint8.
     if out.max() <= 1.5:
         out = out * 255.0
     out = np.clip(out, 0.0, 255.0).astype(np.uint8)
 
-    result = PILImage.fromarray(out, mode="RGB")
-    assert result.size == (orig_w, orig_h), (
-        f"LaMa output size {result.size} != input {(orig_w, orig_h)}"
-    )
-    return result
+    return PILImage.fromarray(out, mode="RGB")
 
 
 # ---------------------------------------------------------------------------
@@ -452,10 +439,6 @@ def _remove_bg_sync(task_id: str) -> dict:
     output_bytes = remove(
         input_bytes,
         session=session,
-        alpha_matting=True,
-        alpha_matting_foreground_threshold=240,
-        alpha_matting_background_threshold=10,
-        alpha_matting_erode_size=10,
         post_process_mask=True,
     )
     _update_status(task_id, "processing", progress=80.0)
@@ -617,35 +600,82 @@ def _remove_watermark_sync(
 
 
 def _inpaint_with_lama(img, mask):
-    """Run LaMa inpainting with safe downsample/upsample for large inputs.
+    """Crop a square window around the mask bbox, inpaint at 512x512, paste back.
 
-    LaMa on CPU with 3000+ px images is slow and risks OOM. Downsample to
-    max 1536 px on the longest side, inpaint, then upsample the result back
-    using LANCZOS so the saved file keeps the original resolution.
+    The LaMa ONNX weights we use have a fixed 512x512 input, so we:
+
+    1. Find the bounding box of the (already-dilated) mask and expand it by
+       ~64 px for surrounding context LaMa can condition on.
+    2. Grow the window to a square (longer side) centered on the mask.
+    3. Clamp the window to image bounds, pad with edge-replication if the
+       image itself is smaller than the target square.
+    4. Resize the square crop to 512x512, run LaMa, and resize the output
+       back to the crop dimensions.
+    5. Compose the result into a copy of the original image, replacing only
+       the masked pixels so unrelated areas stay bit-identical.
+
+    Returns the BGR image with the masked region replaced.
     """
     from PIL import Image
 
-    MAX_LAMA_SIDE = 1536
-    h, w = img.shape[:2]
-    scale = min(MAX_LAMA_SIDE / max(h, w), 1.0)
+    H, W = img.shape[:2]
+    ys, xs = np.where(mask > 0)
+    if xs.size == 0:
+        return img.copy()
 
-    if scale < 1.0:
-        new_w, new_h = int(w * scale), int(h * scale)
-        img_for_lama = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        mask_for_lama = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
-    else:
-        img_for_lama = img
-        mask_for_lama = mask
+    pad = 64
+    x0 = max(0, int(xs.min()) - pad)
+    y0 = max(0, int(ys.min()) - pad)
+    x1 = min(W, int(xs.max()) + pad + 1)
+    y1 = min(H, int(ys.max()) + pad + 1)
 
-    pil_img = Image.fromarray(cv2.cvtColor(img_for_lama, cv2.COLOR_BGR2RGB))
-    pil_mask = Image.fromarray(mask_for_lama)
+    # Grow window to a square centered on the bbox so LaMa gets symmetric context.
+    side = max(x1 - x0, y1 - y0)
+    cx = (x0 + x1) // 2
+    cy = (y0 + y1) // 2
+    sx0 = max(0, cx - side // 2)
+    sy0 = max(0, cy - side // 2)
+    sx1 = min(W, sx0 + side)
+    sy1 = min(H, sy0 + side)
+    # If we hit the right/bottom edge, slide the window left/up so it still
+    # has `side` length where the image is large enough.
+    if sx1 - sx0 < side and sx0 > 0:
+        sx0 = max(0, sx1 - side)
+    if sy1 - sy0 < side and sy0 > 0:
+        sy0 = max(0, sy1 - side)
 
+    crop_w = sx1 - sx0
+    crop_h = sy1 - sy0
+    crop_img = img[sy0:sy1, sx0:sx1]
+    crop_mask = mask[sy0:sy1, sx0:sx1]
+
+    # If the image is smaller than `side` in either dim, pad the crop to a
+    # square with edge-replicated pixels (image) and zeros (mask).
+    sq = max(crop_w, crop_h)
+    if crop_w != sq or crop_h != sq:
+        crop_img = cv2.copyMakeBorder(
+            crop_img, 0, sq - crop_h, 0, sq - crop_w, cv2.BORDER_REPLICATE
+        )
+        crop_mask = cv2.copyMakeBorder(
+            crop_mask, 0, sq - crop_h, 0, sq - crop_w, cv2.BORDER_CONSTANT, value=0
+        )
+
+    img_512 = cv2.resize(crop_img, (_LAMA_INPUT_SIZE, _LAMA_INPUT_SIZE), interpolation=cv2.INTER_AREA)
+    mask_512 = cv2.resize(crop_mask, (_LAMA_INPUT_SIZE, _LAMA_INPUT_SIZE), interpolation=cv2.INTER_NEAREST)
+
+    pil_img = Image.fromarray(cv2.cvtColor(img_512, cv2.COLOR_BGR2RGB))
+    pil_mask = Image.fromarray(mask_512)
     result_pil = _run_lama_onnx(pil_img, pil_mask)
+    result_512 = cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR)
 
-    if scale < 1.0:
-        result_pil = result_pil.resize((w, h), Image.LANCZOS)
+    # Scale result back to the square crop size, then trim any padding added above.
+    result_sq = cv2.resize(result_512, (sq, sq), interpolation=cv2.INTER_LANCZOS4)
+    result_crop = result_sq[:crop_h, :crop_w]
 
-    return cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR)
+    out = img.copy()
+    region = mask[sy0:sy1, sx0:sx1] > 0
+    out[sy0:sy1, sx0:sx1][region] = result_crop[region]
+    return out
 
 
 # ---------------------------------------------------------------------------

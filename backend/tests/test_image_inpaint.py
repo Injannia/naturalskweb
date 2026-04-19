@@ -33,22 +33,30 @@ def test_lama_session_lazy_init(tmp_path, monkeypatch):
     image_service._lama_session = None  # cleanup
 
 
-def test_run_lama_onnx_preserves_shape(monkeypatch):
-    """_run_lama_onnx returns a PIL image of the same size as input."""
-    img = Image.new("RGB", (64, 48), color=(120, 200, 100))
-    mask = Image.new("L", (64, 48), color=0)
-
-    # Model output 'image' is (1, 3, H, W) where H=48, W=64 (already multiples of 8)
-    fake_output = np.full((1, 3, 48, 64), 255, dtype=np.float32)
+def test_run_lama_onnx_requires_512_input(monkeypatch):
+    """_run_lama_onnx enforces the model's fixed 512x512 input size."""
     fake_session = MagicMock()
-    fake_session.run.return_value = [fake_output]
     monkeypatch.setattr(image_service, "_get_lama_session", lambda: fake_session)
+
+    small_img = Image.new("RGB", (64, 48), color=(120, 200, 100))
+    small_mask = Image.new("L", (64, 48), color=0)
+    with pytest.raises(ValueError):
+        image_service._run_lama_onnx(small_img, small_mask)
+
+    img = Image.new("RGB", (512, 512), color=(120, 200, 100))
+    mask = Image.new("L", (512, 512), color=0)
+    fake_output = np.full((1, 3, 512, 512), 255, dtype=np.float32)
+    fake_session.run.return_value = [fake_output]
 
     result = image_service._run_lama_onnx(img, mask)
 
     assert isinstance(result, Image.Image)
-    assert result.size == (64, 48)
+    assert result.size == (512, 512)
     assert fake_session.run.call_count == 1
+    # Verify the tensor shapes fed to the session are (1,3,512,512) / (1,1,512,512)
+    _, feeds = fake_session.run.call_args.args
+    assert feeds["image"].shape == (1, 3, 512, 512)
+    assert feeds["mask"].shape == (1, 1, 512, 512)
 
 
 @pytest.fixture
@@ -109,9 +117,9 @@ def test_ns_uses_radius_10(task_dir_with_input):
     assert flags_arg == image_service.cv2.INPAINT_NS
 
 
-def test_lama_branch_calls_run_lama_with_pil_images(task_dir_with_input, monkeypatch):
-    """LaMa branch invokes _run_lama_onnx with PIL Image + PIL mask."""
-    fake_result = Image.new("RGB", (1024, 768), color=(128, 128, 128))
+def test_lama_branch_calls_run_lama_with_512_pil(task_dir_with_input, monkeypatch):
+    """LaMa branch crops around the mask bbox and feeds 512x512 PIL into _run_lama_onnx."""
+    fake_result = Image.new("RGB", (512, 512), color=(128, 128, 128))
     fake_run = MagicMock(return_value=fake_result)
     monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
 
@@ -125,14 +133,14 @@ def test_lama_branch_calls_run_lama_with_pil_images(task_dir_with_input, monkeyp
     call_img, call_mask = fake_run.call_args.args
     assert isinstance(call_img, Image.Image)
     assert isinstance(call_mask, Image.Image)
-    assert call_img.size == (1024, 768)
-    assert call_mask.size == (1024, 768)
+    assert call_img.size == (512, 512)
+    assert call_mask.size == (512, 512)
     assert result["filename"].endswith(".png")
 
 
-def test_lama_branch_downsamples_large_inputs(large_task_dir, monkeypatch):
-    """LaMa input > 1536 px on the longest side is downsampled before inference."""
-    fake_result = Image.new("RGB", (1536, 1024), color=(128, 128, 128))
+def test_lama_branch_preserves_original_resolution(large_task_dir, monkeypatch):
+    """LaMa output is pasted into the original image, so the saved file keeps its size."""
+    fake_result = Image.new("RGB", (512, 512), color=(128, 128, 128))
     fake_run = MagicMock(return_value=fake_result)
     monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
 
@@ -143,7 +151,7 @@ def test_lama_branch_downsamples_large_inputs(large_task_dir, monkeypatch):
     )
 
     call_img, _ = fake_run.call_args.args
-    assert max(call_img.size) == 1536  # downsampled from 3000
+    assert call_img.size == (512, 512)
     assert result["filename"].endswith(".png")
 
     task_dir = os.path.join(settings.UPLOAD_DIR, large_task_dir)
