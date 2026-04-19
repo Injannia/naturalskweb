@@ -1,0 +1,79 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-19-image-processor-quality.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 0: Dependencies & install check",
+      "status": "pending",
+      "description": "**Goal:** Добавить simple-lama-inpainting и поднять rembg до 2.0.56+ для BiRefNet.\n\n**Files:**\n- Modify: backend/requirements.txt\n\n**Acceptance Criteria:**\n- [ ] simple-lama-inpainting>=0.1.2 добавлен\n- [ ] rembg[cpu]>=2.0.56 (было >=2.0.50)\n- [ ] pip install проходит, импорты работают\n\n**Verify:** `cd backend && pip install -r requirements.txt && python -c \"from simple_lama_inpainting import SimpleLama; from rembg import new_session\"`\n\n```json:metadata\n{\"files\": [\"backend/requirements.txt\"], \"verifyCommand\": \"cd backend && pip install -r requirements.txt && python -c 'from simple_lama_inpainting import SimpleLama; from rembg import new_session; print(\\\"ok\\\")'\", \"acceptanceCriteria\": [\"simple-lama-inpainting added\", \"rembg bumped to 2.0.56+\", \"imports succeed\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 1: Schema — accept 'lama' in InpaintMethod",
+      "status": "pending",
+      "description": "**Goal:** Расширить INPAINT_METHODS значением 'lama'.\n\n**Files:**\n- Modify: backend/app/schemas/image.py\n- Create: backend/tests/test_image_schema.py\n\n**Acceptance Criteria:**\n- [ ] INPAINT_METHODS = {\"lama\",\"telea\",\"ns\"}\n- [ ] pydantic-валидация принимает lama, отклоняет unknown\n\n**Verify:** `cd backend && pytest tests/test_image_schema.py -v`\n\n```json:metadata\n{\"files\": [\"backend/app/schemas/image.py\", \"backend/tests/test_image_schema.py\"], \"verifyCommand\": \"cd backend && pytest tests/test_image_schema.py -v\", \"acceptanceCriteria\": [\"lama accepted\", \"unknown rejected\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 2: LaMa lazy loader in image_service",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Thread-safe ленивый `_get_lama_model()` с кэшированием.\n\n**Files:**\n- Modify: backend/app/services/image_service.py\n- Create: backend/tests/test_image_inpaint.py (первый тест)\n\n**Acceptance Criteria:**\n- [ ] _lama_model, _lama_lock — module-level\n- [ ] _get_lama_model() кэширует SimpleLama, lazy import\n\n**Verify:** `cd backend && pytest tests/test_image_inpaint.py::test_lama_model_lazy_init -v`\n\n```json:metadata\n{\"files\": [\"backend/app/services/image_service.py\", \"backend/tests/test_image_inpaint.py\"], \"verifyCommand\": \"cd backend && pytest tests/test_image_inpaint.py::test_lama_model_lazy_init -v\", \"acceptanceCriteria\": [\"module-level globals\", \"lazy single-init\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 3: Rewrite _remove_watermark_sync — dilation, radius 10, LaMa branch",
+      "status": "pending",
+      "blockedBy": [2, 3],
+      "description": "**Goal:** Все три метода (lama/telea/ns) работают; маска дилатируется (kernel 11×11); для LaMa — даунсемплинг до 1536 px с последующим апсемплом.\n\n**Files:**\n- Modify: backend/app/services/image_service.py\n- Modify: backend/tests/test_image_inpaint.py (4 новых теста)\n\n**Acceptance Criteria:**\n- [ ] cv2.dilate с эллипсом 11×11 применяется перед inpaint\n- [ ] cv2.inpaint использует radius=10 (было 3)\n- [ ] LaMa получает PIL.Image + PIL.Image (mask)\n- [ ] При max(h,w)>1536 — downsample→inpaint→upsample LANCZOS\n- [ ] Результат сохраняется как .png с превью\n\n**Verify:** `cd backend && pytest tests/test_image_inpaint.py -v` → 5 passed\n\n```json:metadata\n{\"files\": [\"backend/app/services/image_service.py\", \"backend/tests/test_image_inpaint.py\"], \"verifyCommand\": \"cd backend && pytest tests/test_image_inpaint.py -v\", \"acceptanceCriteria\": [\"dilate applied\", \"radius 10\", \"LaMa PIL IO\", \"downsample>1536\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 4: Switch rembg to birefnet-general-lite + alpha matting",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Удаление фона использует BiRefNet-lite с alpha matting и post-process mask.\n\n**Files:**\n- Modify: backend/app/services/image_service.py\n\n**Acceptance Criteria:**\n- [ ] _REMBG_MODEL_NAME = \"birefnet-general-lite\"\n- [ ] remove() вызывается с alpha_matting=True, thresholds (240/10), erode=10, post_process_mask=True\n- [ ] Ручной smoke-прогон подтверждает улучшенное качество; при OOM — откат на isnet-general-use\n\n**Verify:** константа установлена + ручная проверка качества.\n\n```json:metadata\n{\"files\": [\"backend/app/services/image_service.py\"], \"verifyCommand\": \"cd backend && python -c 'from app.services.image_service import _REMBG_MODEL_NAME; assert _REMBG_MODEL_NAME==\\\"birefnet-general-lite\\\"; print(\\\"ok\\\")'\", \"acceptanceCriteria\": [\"model constant\", \"alpha matting args\", \"manual smoke passes\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 5: Warm up models in lifespan",
+      "status": "pending",
+      "blockedBy": [3, 5],
+      "description": "**Goal:** rembg+LaMa прогружаются в фоне при старте, не блокируя приложение.\n\n**Files:**\n- Modify: backend/app/main.py\n\n**Acceptance Criteria:**\n- [ ] asyncio.create_task(_warmup_image_models()) в lifespan\n- [ ] Вызывает _get_rembg_session и _get_lama_model через asyncio.to_thread\n- [ ] Ошибка логируется logger.exception, не прерывает старт\n- [ ] /health отвечает сразу после старта\n\n**Verify:** `uvicorn app.main:app --port 8765 &; sleep 2; curl -s http://localhost:8765/health` → `{\"status\":\"ok\"}`\n\n```json:metadata\n{\"files\": [\"backend/app/main.py\"], \"verifyCommand\": \"cd backend && timeout 5 uvicorn app.main:app --port 8765 & sleep 3 && curl -s http://localhost:8765/health\", \"acceptanceCriteria\": [\"background warmup task\", \"no start block\", \"exception logged\"]}\n```"
+    },
+    {
+      "id": 7,
+      "subject": "Task 6: Frontend — extend InpaintMethod type with 'lama'",
+      "status": "pending",
+      "description": "**Goal:** TS-тип InpaintMethod = 'lama' | 'telea' | 'ns'.\n\n**Files:**\n- Modify: frontend/src/pages/ImageProcessor/types.ts\n\n**Acceptance Criteria:**\n- [ ] Тип расширен\n\n**Verify:** `cd frontend && bun run build` (может упасть, пока Task 7 не сделан — нормально)\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/ImageProcessor/types.ts\"], \"verifyCommand\": \"cd frontend && bun run build\", \"acceptanceCriteria\": [\"type union includes lama\"]}\n```"
+    },
+    {
+      "id": 8,
+      "subject": "Task 7: Frontend — default lama in WatermarkRemoval + hints",
+      "status": "pending",
+      "blockedBy": [7],
+      "description": "**Goal:** useState('lama'), новые подписи опций, подсказка под селектом, подсказка о длительности в processing-фазе.\n\n**Files:**\n- Modify: frontend/src/pages/ImageProcessor/components/WatermarkRemoval.tsx\n- Modify: frontend/src/pages/ImageProcessor/components/WatermarkRemoval.module.css\n\n**Acceptance Criteria:**\n- [ ] Дефолт 'lama'\n- [ ] Три option с читаемыми подписями\n- [ ] methodHint под селектом\n- [ ] processingHint когда выбран lama\n\n**Verify:** `cd frontend && bun run lint && bun run build`\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/ImageProcessor/components/WatermarkRemoval.tsx\", \"frontend/src/pages/ImageProcessor/components/WatermarkRemoval.module.css\"], \"verifyCommand\": \"cd frontend && bun run lint && bun run build\", \"acceptanceCriteria\": [\"default lama\", \"labeled options\", \"hint texts\"]}\n```"
+    },
+    {
+      "id": 9,
+      "subject": "Task 8: Frontend — redesign ImageCompare (three modes, inverted semantics)",
+      "status": "pending",
+      "description": "**Goal:** Три режима (До/Сравнить/После), левая = До, правая = После, клавиатурная навигация, шашечка прозрачности.\n\n**Files:**\n- Modify: frontend/src/pages/ImageProcessor/components/ImageCompare.tsx\n- Modify: frontend/src/pages/ImageProcessor/components/ImageCompare.module.css\n\n**Acceptance Criteria:**\n- [ ] Новый prop transparencyGrid?: boolean\n- [ ] mode: 'before'|'compare'|'after', дефолт 'compare'\n- [ ] В compare: afterSrc фоновый, beforeSrc клипованный overlay\n- [ ] Лейблы в верхних углах; role=\"slider\" + aria + клавиатура ←→ Shift Home End\n- [ ] Шашечка видна при transparencyGrid=true\n\n**Verify:** `cd frontend && bun run lint && bun run build`\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/ImageProcessor/components/ImageCompare.tsx\", \"frontend/src/pages/ImageProcessor/components/ImageCompare.module.css\"], \"verifyCommand\": \"cd frontend && bun run lint && bun run build\", \"acceptanceCriteria\": [\"three modes\", \"correct semantics\", \"keyboard\", \"transparency grid\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 9: Frontend — enable transparencyGrid in BackgroundRemoval",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** BackgroundRemoval передаёт transparencyGrid={true} в ImageCompare.\n\n**Files:**\n- Modify: frontend/src/pages/ImageProcessor/components/BackgroundRemoval.tsx\n\n**Acceptance Criteria:**\n- [ ] <ImageCompare ... transparencyGrid={true} />\n\n**Verify:** `cd frontend && bun run build`\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/ImageProcessor/components/BackgroundRemoval.tsx\"], \"verifyCommand\": \"cd frontend && bun run build\", \"acceptanceCriteria\": [\"prop passed\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 10: Final verification — lints, tests, manual UX",
+      "status": "pending",
+      "blockedBy": [4, 5, 6, 8, 9, 10],
+      "description": "**Goal:** Все автотесты и линты зелёные; реальная ручная проверка подтверждает улучшения качества и UX.\n\n**Files:** —\n\n**Acceptance Criteria:**\n- [ ] pytest все тесты PASS\n- [ ] bun run lint — 0 ошибок\n- [ ] bun run build — успех\n- [ ] Ручной прогон удаления фона (портрет + товар) — визуально значительно лучше\n- [ ] Ручной прогон удаления крупного watermark с LaMa — почти без следов\n- [ ] UI сравнения: все три режима работают, слева «До», справа «После», клавиатура, шашечка\n\n**Verify:** комбинированный чек + ручной тест\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"cd backend && pytest -v && cd ../frontend && bun run lint && bun run build\", \"acceptanceCriteria\": [\"pytest green\", \"lint clean\", \"build ok\", \"manual QA\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-19T00:00:00Z"
+}
