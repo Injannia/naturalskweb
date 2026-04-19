@@ -1,16 +1,76 @@
 /* ── ImageCompare styles ── */
 
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ── Mode switcher ── */
+.modeSwitcher {
+  display: inline-flex;
+  align-self: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 2px;
+}
+
+.modeBtn,
+.modeBtnActive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.modeBtn:hover {
+  color: var(--text-primary);
+}
+
+.modeBtnActive {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Image container ── */
 .container {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
-  cursor: ew-resize;
   user-select: none;
   touch-action: none;
-  /* Aspect ratio determined by the image */
   line-height: 0;
+  container-type: inline-size;
+}
+
+.cursorCompare {
+  cursor: ew-resize;
+}
+
+/* Transparency checker grid — for PNG with alpha channel */
+.grid {
+  background-color: #2a2a32;
+  background-image:
+    linear-gradient(45deg, #3a3a44 25%, transparent 25%),
+    linear-gradient(-45deg, #3a3a44 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #3a3a44 75%),
+    linear-gradient(-45deg, transparent 75%, #3a3a44 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
 }
 
 .image {
@@ -21,8 +81,8 @@
   pointer-events: none;
 }
 
-/* After image wrapper — clips from the right by controlling width */
-.afterWrapper {
+/* Before wrapper — clips from the left by controlling width */
+.beforeWrapper {
   position: absolute;
   top: 0;
   left: 0;
@@ -30,21 +90,16 @@
   overflow: hidden;
 }
 
-.afterWrapper .image {
-  /* Match the container width, not the wrapper width, so the image doesn't scale */
+.beforeWrapper .image {
+  /* Match container width so image doesn't squash as wrapper shrinks */
   width: 100cqw;
   min-width: 0;
-}
-
-/* Use container query to size the after image to the full container width */
-.container {
-  container-type: inline-size;
 }
 
 /* ── Labels ── */
 .label {
   position: absolute;
-  bottom: var(--space-3);
+  top: var(--space-3);
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-ui);
   font-size: var(--fs-xs);
@@ -56,12 +111,12 @@
   backdrop-filter: blur(4px);
 }
 
-.labelBefore {
-  right: var(--space-3);
+.labelTopLeft {
+  left: var(--space-3);
 }
 
-.labelAfter {
-  left: var(--space-3);
+.labelTopRight {
+  right: var(--space-3);
 }
 
 /* ── Slider line + handle ── */
@@ -88,8 +143,8 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-full);
   background: var(--bg-card);
   border: 2px solid var(--text-primary);
@@ -100,13 +155,14 @@
   color: var(--text-primary);
   pointer-events: auto;
   cursor: ew-resize;
-
+  outline: none;
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
-.sliderHandle:hover {
+.sliderHandle:hover,
+.sliderHandle:focus-visible {
   border-color: var(--accent);
   box-shadow: var(--shadow-glow);
 }
@@ -114,12 +170,17 @@
 /* ── Responsive ── */
 @media (max-width: 480px) {
   .sliderHandle {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 
   .label {
     font-size: 0.625rem;
     padding: 2px var(--space-2);
+  }
+
+  .modeBtn,
+  .modeBtnActive {
+    padding: var(--space-1) var(--space-2);
   }
 }
