@@ -27,7 +27,7 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
   const [shapes, setShapes] = useState<MaskShape[]>([])
   const [tool, setTool] = useState<MaskTool>('brush')
   const [brushSize, setBrushSize] = useState(15)
-  const [inpaintMethod, setInpaintMethod] = useState<InpaintMethod>('telea')
+  const [inpaintMethod, setInpaintMethod] = useState<InpaintMethod>('lama')
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 })
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -222,15 +222,22 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
 
             <div className={styles.separator} />
 
-            <select
-              className={styles.methodSelect}
-              value={inpaintMethod}
-              onChange={(e) => setInpaintMethod(e.target.value as InpaintMethod)}
-              title="Метод инпейнтинга"
-            >
-              <option value="telea">TELEA</option>
-              <option value="ns">Navier-Stokes</option>
-            </select>
+            <div className={styles.methodWrap}>
+              <select
+                className={styles.methodSelect}
+                value={inpaintMethod}
+                onChange={(e) => setInpaintMethod(e.target.value as InpaintMethod)}
+                title="Метод инпейнтинга"
+              >
+                <option value="lama">LaMa (нейросеть, рекомендуется)</option>
+                <option value="telea">TELEA (быстрый классический)</option>
+                <option value="ns">Navier-Stokes (классический)</option>
+              </select>
+              <p className={styles.methodHint}>
+                LaMa даёт лучший результат для крупных и сложных знаков.
+                Классические методы работают быстрее на мелких дефектах.
+              </p>
+            </div>
 
             <div className={styles.actionGroup}>
               <button
@@ -295,6 +302,11 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
               style={{ width: `${progress}%` }}
             />
           </div>
+          {inpaintMethod === 'lama' && (
+            <p className={styles.processingHint}>
+              LaMa работает локально на CPU и может занять до минуты.
+            </p>
+          )}
         </div>
       )}
 
