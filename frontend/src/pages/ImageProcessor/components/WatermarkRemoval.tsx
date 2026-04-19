@@ -26,7 +26,7 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
   // Canvas state
   const [shapes, setShapes] = useState<MaskShape[]>([])
   const [tool, setTool] = useState<MaskTool>('brush')
-  const [brushSize, setBrushSize] = useState(15)
+  const [brushSize, setBrushSize] = useState(30)
   const [inpaintMethod, setInpaintMethod] = useState<InpaintMethod>('lama')
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 })
 
@@ -210,7 +210,7 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
                   <input
                     type="range"
                     min={5}
-                    max={50}
+                    max={80}
                     value={brushSize}
                     onChange={(e) => setBrushSize(Number(e.target.value))}
                     className={styles.slider}

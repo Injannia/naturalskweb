@@ -57,7 +57,7 @@ _tasks_lock = threading.Lock()
 # Lazy-loaded rembg session
 # ---------------------------------------------------------------------------
 
-_REMBG_MODEL_NAME = "birefnet-general-lite"
+_REMBG_MODEL_NAME = "isnet-general-use"
 
 _rembg_session = None
 _rembg_lock = threading.Lock()
