@@ -3,7 +3,7 @@
 export type ImageOperation = 'remove_bg' | 'remove_watermark'
 export type ImageStatus = 'pending' | 'uploading' | 'processing' | 'ready' | 'error'
 export type MaskTool = 'brush' | 'rect' | 'eraser'
-export type InpaintMethod = 'telea' | 'ns'
+export type InpaintMethod = 'lama' | 'telea' | 'ns'
 
 export interface MaskShape {
   type: 'brush' | 'rect'       // eraser is stored as brush with isEraser flag
