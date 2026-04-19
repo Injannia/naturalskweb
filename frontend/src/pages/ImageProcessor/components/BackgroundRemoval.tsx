@@ -174,7 +174,7 @@ export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalPr
 
       {phase === 'result' && (
         <div className={styles.resultSection}>
-          <ImageCompare beforeSrc={previewUrl} afterSrc={resultPreviewUrl} />
+          <ImageCompare beforeSrc={previewUrl} afterSrc={resultPreviewUrl} transparencyGrid />
           <div className={styles.resultActions}>
             <button className={styles.successBtn} onClick={handleDownload}>
               <Download size={16} aria-hidden="true" />
