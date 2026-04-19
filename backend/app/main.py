@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -206,11 +207,29 @@ def _setup_scheduler():
     return scheduler
 
 
+async def _warmup_image_models() -> None:
+    """Background task: preload rembg and LaMa models so first request is fast."""
+    from app.services.image_service import _get_rembg_session, _get_lama_session
+
+    try:
+        await asyncio.to_thread(_get_rembg_session)
+        logger.info("warmup: rembg session ready")
+    except Exception:
+        logger.exception("warmup: rembg session failed")
+
+    try:
+        await asyncio.to_thread(_get_lama_session)
+        logger.info("warmup: LaMa session ready")
+    except Exception:
+        logger.exception("warmup: LaMa session failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
     await _create_superadmin()
     scheduler = _setup_scheduler()
+    asyncio.create_task(_warmup_image_models())
     logger.info("NaturalskWeb backend started")
     yield
     scheduler.shutdown(wait=False)
