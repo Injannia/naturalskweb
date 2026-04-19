@@ -630,45 +630,41 @@ async def restore_task(
 # ---------------------------------------------------------------------------
 
 
-def _find_preview(task_dir: str) -> str | None:
-    """Find the first preview file in the task directory.
+def _list_previews_by_mtime(task_dir: str) -> list[str]:
+    """Return preview file paths sorted by mtime ascending (oldest first).
 
-    Preview files start with 'preview_'.  When there are multiple previews
-    (input + result), this returns the *first* one found — which is the
-    input preview since it was created earlier.
+    Preview filenames are ``preview_{uuid}.jpg`` — UUID hex is random, so
+    lexicographic order does not correlate with creation time. Always sort
+    by mtime: input preview is written first (at upload), result preview
+    later (at end of processing).
     """
     if not os.path.isdir(task_dir):
-        return None
-    previews = sorted(
-        (name for name in os.listdir(task_dir) if name.startswith("preview_")),
-    )
-    if previews:
-        return os.path.join(task_dir, previews[0])
-    return None
+        return []
+    names = [n for n in os.listdir(task_dir) if n.startswith("preview_")]
+    paths = [os.path.join(task_dir, n) for n in names]
+    paths.sort(key=os.path.getmtime)
+    return paths
+
+
+def _find_preview(task_dir: str) -> str | None:
+    """Return the input preview — the oldest ``preview_*.jpg`` in task_dir."""
+    previews = _list_previews_by_mtime(task_dir)
+    return previews[0] if previews else None
 
 
 def _find_result_preview(task_dir: str, result_filename: str) -> str | None:
-    """Find the result preview file in the task directory.
+    """Return the result preview — the newest ``preview_*.jpg`` in task_dir.
 
-    The result preview is generated *after* the result file, so it is the
-    *last* preview file alphabetically (or by mtime).  If only one preview
-    exists, that's the input preview — no result preview yet.
+    Requires at least two previews (input + result) OR a single preview
+    created after the result file (e.g. when the input preview was
+    cleaned up).
     """
-    if not os.path.isdir(task_dir):
-        return None
-    previews = sorted(
-        (name for name in os.listdir(task_dir) if name.startswith("preview_")),
-    )
-    # Need at least 2 previews: input + result
+    previews = _list_previews_by_mtime(task_dir)
     if len(previews) >= 2:
-        return os.path.join(task_dir, previews[-1])
-    # Fallback: if there's only one preview and the result file exists,
-    # the single preview might be the result preview (e.g. input preview was
-    # cleaned up).  Check by mtime relative to result file.
+        return previews[-1]
     if len(previews) == 1:
         result_path = os.path.join(task_dir, result_filename)
-        preview_path = os.path.join(task_dir, previews[0])
-        if os.path.isfile(result_path) and os.path.isfile(preview_path):
-            if os.path.getmtime(preview_path) >= os.path.getmtime(result_path):
-                return preview_path
+        if os.path.isfile(result_path):
+            if os.path.getmtime(previews[0]) >= os.path.getmtime(result_path):
+                return previews[0]
     return None
