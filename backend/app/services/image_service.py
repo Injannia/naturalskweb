@@ -25,7 +25,9 @@ import re
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
+import numpy as np
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -67,6 +69,106 @@ def _get_rembg_session():
             _rembg_session = new_session("u2netp")
             logger.info("rembg u2netp session initialised")
         return _rembg_session
+
+
+# ---------------------------------------------------------------------------
+# Lazy-loaded LaMa ONNX model
+# ---------------------------------------------------------------------------
+
+_LAMA_MODEL_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
+_LAMA_CACHE_DIR = Path.home() / ".cache" / "naturalskweb" / "lama"
+_LAMA_CACHE_FILE = _LAMA_CACHE_DIR / "lama_fp32.onnx"
+_LAMA_PAD_MOD = 8  # LaMa input size must be divisible by 8
+
+_lama_session = None
+_lama_lock = threading.Lock()
+
+
+def _download_lama_weights() -> None:
+    """Download lama.onnx into cache on first access."""
+    import urllib.request
+
+    _LAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = _LAMA_CACHE_FILE.with_suffix(".part")
+    logger.info("Downloading LaMa weights from %s", _LAMA_MODEL_URL)
+    urllib.request.urlretrieve(_LAMA_MODEL_URL, tmp)
+    tmp.rename(_LAMA_CACHE_FILE)
+    logger.info("LaMa weights saved to %s", _LAMA_CACHE_FILE)
+
+
+def _get_lama_session():
+    """Thread-safe lazy initialisation of the LaMa ONNX InferenceSession."""
+    global _lama_session
+    with _lama_lock:
+        if _lama_session is None:
+            import onnxruntime as ort
+
+            if not _LAMA_CACHE_FILE.exists():
+                _download_lama_weights()
+
+            _lama_session = ort.InferenceSession(
+                str(_LAMA_CACHE_FILE),
+                providers=["CPUExecutionProvider"],
+            )
+            logger.info("LaMa ONNX session initialised")
+        return _lama_session
+
+
+def _pad_to_mod(arr: "np.ndarray", mod: int) -> "tuple[np.ndarray, int, int]":
+    """Pad (H, W, ...) array on right/bottom so H and W are multiples of `mod`."""
+    h, w = arr.shape[:2]
+    ph = (mod - h % mod) % mod
+    pw = (mod - w % mod) % mod
+    if ph == 0 and pw == 0:
+        return arr, 0, 0
+    pad_width = [(0, ph), (0, pw)] + [(0, 0)] * (arr.ndim - 2)
+    return np.pad(arr, pad_width, mode="edge"), ph, pw
+
+
+def _run_lama_onnx(pil_image, pil_mask):
+    """Run raw LaMa ONNX inference on (image, mask) and return result as PIL RGB.
+
+    Low-level helper: no downsampling, no colour-space juggling. The wrapper
+    _inpaint_with_lama in _remove_watermark_sync handles cv2<->PIL and resize.
+
+    - pil_image: RGB of any size
+    - pil_mask: L (grayscale), white = area to inpaint, black = keep
+    """
+    from PIL import Image as PILImage
+
+    session = _get_lama_session()
+    orig_w, orig_h = pil_image.size
+
+    img_arr = np.array(pil_image.convert("RGB"), dtype=np.float32) / 255.0
+    mask_arr = (np.array(pil_mask.convert("L"), dtype=np.float32) > 127).astype(np.float32)
+
+    img_padded, ph, pw = _pad_to_mod(img_arr, _LAMA_PAD_MOD)
+    mask_padded, _, _ = _pad_to_mod(mask_arr, _LAMA_PAD_MOD)
+
+    img_tensor = np.transpose(img_padded, (2, 0, 1))[None, ...]         # (1, 3, H, W)
+    mask_tensor = mask_padded[None, None, ...]                          # (1, 1, H, W)
+
+    outputs = session.run(None, {"image": img_tensor, "mask": mask_tensor})
+    out = outputs[0][0]
+
+    # Output may be (3, H, W) CHW or (H, W, 3) HWC — normalise to HWC.
+    if out.ndim == 3 and out.shape[0] == 3:
+        out = np.transpose(out, (1, 2, 0))
+
+    # Crop padding (operates on HWC).
+    out_h, out_w = out.shape[:2]
+    out = out[: out_h - ph, : out_w - pw]
+
+    # Values may be in [0, 1] or [0, 255] depending on export — normalise to [0, 255] uint8.
+    if out.max() <= 1.5:
+        out = out * 255.0
+    out = np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    result = PILImage.fromarray(out, mode="RGB")
+    assert result.size == (orig_w, orig_h), (
+        f"LaMa output size {result.size} != input {(orig_w, orig_h)}"
+    )
+    return result
 
 
 # ---------------------------------------------------------------------------
