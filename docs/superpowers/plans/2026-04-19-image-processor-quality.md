@@ -4,9 +4,9 @@
 
 **Goal:** Существенно повысить качество удаления фона и водяных знаков на CPU-железе, исправить неудобный UX сравнения «До/После».
 
-**Architecture:** Модель rembg переводится с `u2netp` на `birefnet-general-lite` с alpha matting. Для inpainting-а добавляется LaMa через `simple-lama-inpainting` как дефолтный метод, классические TELEA/NS остаются. Маска автоматически дилатируется перед инференсом. На фронте `ImageCompare` переделывается: три режима отображения (До / Сравнить / После), инверсия семантики (слева — «До», справа — «После»), клавиатурная навигация, шашечка прозрачности для PNG.
+**Architecture:** Модель rembg переводится с `u2netp` на `birefnet-general-lite` с alpha matting. Для inpainting-а добавляется LaMa через прямой `onnxruntime` как дефолтный метод, классические TELEA/NS остаются. Веса `lama.onnx` (~200 МБ) скачиваются один раз при первом обращении в `~/.cache/naturalskweb/lama/`. Маска автоматически дилатируется перед инференсом. На фронте `ImageCompare` переделывается: три режима отображения (До / Сравнить / После), инверсия семантики (слева — «До», справа — «После»), клавиатурная навигация, шашечка прозрачности для PNG.
 
-**Tech Stack:** FastAPI · SQLAlchemy · rembg (BiRefNet) · simple-lama-inpainting (ONNX) · OpenCV · Pillow · React 18 · TypeScript · Vite · pytest
+**Tech Stack:** FastAPI · SQLAlchemy · rembg (BiRefNet) · onnxruntime (LaMa) · OpenCV · Pillow · React 18 · TypeScript · Vite · pytest
 
 **Spec:** `docs/superpowers/specs/2026-04-19-image-processor-quality-design.md`
 
@@ -15,7 +15,7 @@
 ## File Structure
 
 **Backend — изменяются:**
-- `backend/requirements.txt` — добавить `simple-lama-inpainting`, поднять `rembg`
+- `backend/requirements.txt` — добавить `onnxruntime`, поднять `rembg`
 - `backend/app/schemas/image.py` — расширить `INPAINT_METHODS` на `"lama"`
 - `backend/app/services/image_service.py` — новая константа модели rembg, ленивый загрузчик LaMa, переработка `_remove_bg_sync` и `_remove_watermark_sync`
 - `backend/app/main.py` — прогрев моделей в lifespan
@@ -34,55 +34,20 @@
 
 ---
 
-### Task 0: Добавить зависимости и проверить размер установки
+### Task 0: Добавить зависимости и проверить размер установки ✅ DONE (commit 797cde9)
 
-**Goal:** Установить `simple-lama-inpainting` и актуальную `rembg`, убедиться, что сборка не ломается.
+**Goal:** Установить `onnxruntime` и актуальную `rembg`, убедиться, что сборка не ломается.
 
 **Files:**
 - Modify: `backend/requirements.txt`
 
 **Acceptance Criteria:**
-- [ ] `simple-lama-inpainting>=0.1.2` добавлен
-- [ ] `rembg[cpu]>=2.0.56` (было `>=2.0.50`) для поддержки `birefnet-general-lite`
-- [ ] `pip install -r requirements.txt` проходит без ошибок
-- [ ] `python -c "from simple_lama_inpainting import SimpleLama; from rembg import new_session"` выполняется
+- [x] `onnxruntime>=1.16.0` добавлен
+- [x] `rembg[cpu]>=2.0.56` (было `>=2.0.50`) для поддержки `birefnet-general-lite`
+- [x] `pip install -r requirements.txt` проходит без ошибок
+- [x] `python -c "import onnxruntime; from rembg import new_session"` выполняется
 
-**Verify:** `cd backend && pip install -r requirements.txt && python -c "from simple_lama_inpainting import SimpleLama; from rembg import new_session"` → нет ошибок
-
-**Steps:**
-
-- [ ] **Step 1: Обновить requirements.txt**
-
-Открыть `backend/requirements.txt`, заменить строку `rembg[cpu]>=2.0.50` на `rembg[cpu]>=2.0.56`, добавить новую строку `simple-lama-inpainting>=0.1.2` (сохранить сортировку по алфавиту, если она есть).
-
-- [ ] **Step 2: Установить зависимости**
-
-```bash
-cd backend && pip install -r requirements.txt
-```
-
-- [ ] **Step 3: Проверить импорты**
-
-```bash
-cd backend && python -c "from simple_lama_inpainting import SimpleLama; from rembg import new_session; print('ok')"
-```
-
-Expected: `ok`
-
-- [ ] **Step 4: Проверить, что simple-lama не тянет torch**
-
-```bash
-pip show simple-lama-inpainting | grep -i requires
-```
-
-Если среди зависимостей указан `torch` — проверить его размер: `pip show torch | grep Size`. Если torch тянет >500 МБ, оставить как есть (одноразово при сборке не критично). Если обнаружена утечка памяти при рантайме — зафиксировать в заметках, но из плана не выбиваемся.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add backend/requirements.txt
-git commit -m "deps: add simple-lama-inpainting, bump rembg for birefnet support"
-```
+**Note:** Первоначально был выбран пакет `simple-lama-inpainting`, но его метаданные пинят `pillow<10.0.0`, что конфликтует с проектом. Пакет `iopaint` как альтернатива пинит `Pillow==9.5.0` (ещё жёстче) плюс тянет diffusers/transformers/gradio. Поэтому решено использовать прямой `onnxruntime` с ручной загрузкой весов `lama.onnx` (см. Task 2).
 
 ---
 
@@ -194,99 +159,208 @@ git commit -m "feat(schema): accept 'lama' as valid inpaint_method"
 
 ---
 
-### Task 2: Добавить ленивый загрузчик LaMa в `image_service`
+### Task 2: Добавить ленивый ONNX-загрузчик LaMa в `image_service`
 
-**Goal:** Вспомогательная функция `_get_lama_model()` — инициализация при первом обращении, потокобезопасно.
+**Goal:** Вспомогательная функция `_get_lama_session()` — скачивает `lama.onnx` при первом обращении, создаёт `onnxruntime.InferenceSession`, кеширует. Вторая функция `_inpaint_with_lama(image, mask)` — прогоняет LaMa по PIL-изображению и бинарной маске.
 
 **Files:**
 - Modify: `backend/app/services/image_service.py`
-- Create: `backend/tests/test_image_inpaint.py` (пока только один тест)
+- Create: `backend/tests/test_image_inpaint.py` (пока два теста)
+
+**Constants (добавить в модуль):**
+```python
+_LAMA_MODEL_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
+_LAMA_MODEL_SHA256 = ""  # TODO: заполнить после первого скачивания (используется для валидации кеша)
+_LAMA_CACHE_DIR = Path.home() / ".cache" / "naturalskweb" / "lama"
+_LAMA_CACHE_FILE = _LAMA_CACHE_DIR / "lama_fp32.onnx"
+```
 
 **Acceptance Criteria:**
-- [ ] Глобальные `_lama_model` и `_lama_lock` объявлены на уровне модуля
-- [ ] `_get_lama_model()` возвращает один и тот же объект при повторных вызовах
-- [ ] Импорт `simple_lama_inpainting` ленивый (внутри функции)
+- [ ] Глобальные `_lama_session` и `_lama_lock` объявлены на уровне модуля
+- [ ] `_get_lama_session()` возвращает один и тот же `InferenceSession` при повторных вызовах (скачивание — только при первом)
+- [ ] Файл кешируется в `~/.cache/naturalskweb/lama/lama_fp32.onnx`, при наличии файла сеть не дёргается
+- [ ] Импорт `onnxruntime` и `urllib.request` — ленивые (внутри функции)
+- [ ] `_inpaint_with_lama(pil_image, pil_mask)` возвращает PIL Image того же размера, что и вход
+- [ ] Вход LaMa приводится к shape (1, 3, H, W) float32 [0..1]; маска — (1, 1, H, W) float32 [0/1]; H,W кратны 8 (pad справа/снизу)
 
-**Verify:** `cd backend && pytest tests/test_image_inpaint.py::test_lama_model_lazy_init -v` → PASS
+**Verify:** `cd backend && pytest tests/test_image_inpaint.py -v` → PASS
 
 **Steps:**
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Написать падающий тест лениво-кешированной сессии**
 
 Создать `backend/tests/test_image_inpaint.py`:
 
 ```python
-"""Unit tests for watermark inpainting branches in image_service."""
+"""Unit tests for LaMa ONNX inference in image_service."""
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import numpy as np
+from PIL import Image
 
 from app.services import image_service
 
 
-def test_lama_model_lazy_init():
-    """_get_lama_model returns same instance across calls, init only once."""
-    image_service._lama_model = None  # reset cache
+def test_lama_session_lazy_init(tmp_path, monkeypatch):
+    """_get_lama_session returns same session across calls; download happens once."""
+    image_service._lama_session = None  # reset cache
 
-    fake_lama = MagicMock(name="SimpleLamaInstance")
-    fake_cls = MagicMock(return_value=fake_lama)
+    fake_file = tmp_path / "lama.onnx"
+    fake_file.write_bytes(b"fake onnx bytes")
+    monkeypatch.setattr(image_service, "_LAMA_CACHE_FILE", fake_file)
 
-    with patch.dict(
-        "sys.modules",
-        {"simple_lama_inpainting": MagicMock(SimpleLama=fake_cls)},
-    ):
-        first = image_service._get_lama_model()
-        second = image_service._get_lama_model()
+    fake_session = MagicMock(name="InferenceSession")
+    fake_ort = MagicMock(InferenceSession=MagicMock(return_value=fake_session))
 
-    assert first is fake_lama
-    assert second is fake_lama
-    assert fake_cls.call_count == 1
+    with patch.dict("sys.modules", {"onnxruntime": fake_ort}):
+        first = image_service._get_lama_session()
+        second = image_service._get_lama_session()
+
+    assert first is fake_session
+    assert second is fake_session
+    assert fake_ort.InferenceSession.call_count == 1
+
+
+def test_run_lama_onnx_preserves_shape(monkeypatch):
+    """_run_lama_onnx returns a PIL image of the same size as input."""
+    img = Image.new("RGB", (64, 48), color=(120, 200, 100))
+    mask = Image.new("L", (64, 48), color=0)
+
+    fake_output = np.full((1, 3, 48, 64), 255, dtype=np.float32)
+    fake_session = MagicMock()
+    fake_session.run.return_value = [fake_output]
+    monkeypatch.setattr(image_service, "_get_lama_session", lambda: fake_session)
+
+    result = image_service._run_lama_onnx(img, mask)
+
+    assert isinstance(result, Image.Image)
+    assert result.size == (64, 48)
+    assert fake_session.run.call_count == 1
 ```
 
 - [ ] **Step 2: Запустить тест — должен падать**
 
 ```bash
-cd backend && pytest tests/test_image_inpaint.py::test_lama_model_lazy_init -v
+cd backend && pytest tests/test_image_inpaint.py -v
 ```
 
-Expected: FAIL с AttributeError: `image_service._lama_model`.
+Expected: FAIL (AttributeError: `_lama_session` / `_get_lama_session` / `_run_lama_onnx`).
 
 - [ ] **Step 3: Добавить LaMa-загрузчик в `image_service.py`**
 
-В `backend/app/services/image_service.py` после блока rembg (после `_get_rembg_session`) добавить:
+После блока rembg (после `_get_rembg_session`) добавить:
 
 ```python
 # ---------------------------------------------------------------------------
-# Lazy-loaded LaMa model
+# Lazy-loaded LaMa ONNX model
 # ---------------------------------------------------------------------------
 
-_lama_model = None
+_LAMA_MODEL_URL = "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx"
+_LAMA_CACHE_DIR = Path.home() / ".cache" / "naturalskweb" / "lama"
+_LAMA_CACHE_FILE = _LAMA_CACHE_DIR / "lama_fp32.onnx"
+_LAMA_PAD_MOD = 8  # LaMa input size must be divisible by 8
+
+_lama_session = None
 _lama_lock = threading.Lock()
 
 
-def _get_lama_model():
-    """Thread-safe lazy initialisation of the simple-lama-inpainting model."""
-    global _lama_model
+def _download_lama_weights() -> None:
+    """Download lama.onnx into cache on first access."""
+    import urllib.request
+
+    _LAMA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = _LAMA_CACHE_FILE.with_suffix(".part")
+    logger.info("Downloading LaMa weights from %s", _LAMA_MODEL_URL)
+    urllib.request.urlretrieve(_LAMA_MODEL_URL, tmp)
+    tmp.rename(_LAMA_CACHE_FILE)
+    logger.info("LaMa weights saved to %s", _LAMA_CACHE_FILE)
+
+
+def _get_lama_session():
+    """Thread-safe lazy initialisation of the LaMa ONNX InferenceSession."""
+    global _lama_session
     with _lama_lock:
-        if _lama_model is None:
-            from simple_lama_inpainting import SimpleLama
-            _lama_model = SimpleLama()
-            logger.info("LaMa model initialised")
-        return _lama_model
+        if _lama_session is None:
+            import onnxruntime as ort
+
+            if not _LAMA_CACHE_FILE.exists():
+                _download_lama_weights()
+
+            _lama_session = ort.InferenceSession(
+                str(_LAMA_CACHE_FILE),
+                providers=["CPUExecutionProvider"],
+            )
+            logger.info("LaMa ONNX session initialised")
+        return _lama_session
+
+
+def _pad_to_mod(arr: np.ndarray, mod: int) -> tuple[np.ndarray, int, int]:
+    """Pad (H, W, ...) array on right/bottom so H and W are multiples of `mod`."""
+    h, w = arr.shape[:2]
+    ph = (mod - h % mod) % mod
+    pw = (mod - w % mod) % mod
+    if ph == 0 and pw == 0:
+        return arr, 0, 0
+    pad_width = [(0, ph), (0, pw)] + [(0, 0)] * (arr.ndim - 2)
+    return np.pad(arr, pad_width, mode="edge"), ph, pw
+
+
+def _run_lama_onnx(pil_image: Image.Image, pil_mask: Image.Image) -> Image.Image:
+    """Run raw LaMa ONNX inference on (image, mask) and return result as PIL RGB.
+
+    Low-level helper: no downsampling, no colour-space juggling. The wrapper
+    `_inpaint_with_lama` in `_remove_watermark_sync` handles cv2↔PIL and resize.
+
+    - pil_image: RGB of any size
+    - pil_mask: L (grayscale), white = area to inpaint, black = keep
+    """
+    session = _get_lama_session()
+    orig_w, orig_h = pil_image.size
+
+    img_arr = np.array(pil_image.convert("RGB"), dtype=np.float32) / 255.0
+    mask_arr = (np.array(pil_mask.convert("L"), dtype=np.float32) > 127).astype(np.float32)
+
+    img_padded, ph, pw = _pad_to_mod(img_arr, _LAMA_PAD_MOD)
+    mask_padded, _, _ = _pad_to_mod(mask_arr, _LAMA_PAD_MOD)
+
+    img_tensor = np.transpose(img_padded, (2, 0, 1))[None, ...]         # (1, 3, H, W)
+    mask_tensor = mask_padded[None, None, ...]                          # (1, 1, H, W)
+
+    outputs = session.run(None, {"image": img_tensor, "mask": mask_tensor})
+    out = outputs[0][0]                                                 # (3, H, W) or (H, W, 3)
+
+    if out.shape[0] == 3:
+        out = np.transpose(out, (1, 2, 0))
+    out = out[: out.shape[0] - ph, : out.shape[1] - pw]                 # crop padding
+    out = np.clip(out, 0.0, 255.0 if out.max() > 1.5 else 1.0)
+    if out.max() <= 1.5:
+        out = out * 255.0
+    out = out.astype(np.uint8)
+
+    result = Image.fromarray(out, mode="RGB")
+    assert result.size == (orig_w, orig_h)
+    return result
 ```
 
-- [ ] **Step 4: Запустить тест — должен пройти**
+Убедиться, что `from pathlib import Path` и `import numpy as np` уже импортированы в модуле (иначе добавить).
+
+- [ ] **Step 4: Запустить тесты — должны пройти**
 
 ```bash
-cd backend && pytest tests/test_image_inpaint.py::test_lama_model_lazy_init -v
+cd backend && pytest tests/test_image_inpaint.py -v
 ```
 
-Expected: PASS.
+Expected: PASS (оба теста).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/services/image_service.py backend/tests/test_image_inpaint.py
-git commit -m "feat(image): add lazy LaMa model loader"
+git commit -m "feat(image): add lazy LaMa ONNX loader and inference helper"
 ```
+
+**Note:** Конкретные имена входов/выходов (`"image"`, `"mask"`) у модели `Carve/LaMa-ONNX` подтверждены её картой на HuggingFace. Если в рантайме они окажутся другими, имплементатор проверит через `session.get_inputs()` и скорректирует ключи.
 
 ---
 
@@ -301,8 +375,8 @@ git commit -m "feat(image): add lazy LaMa model loader"
 **Acceptance Criteria:**
 - [ ] `cv2.dilate` вызывается с эллиптическим ядром 11×11 до inpaint-а
 - [ ] Для `telea` / `ns` `cv2.inpaint` получает `inpaintRadius=10`
-- [ ] Для `lama` используется `_get_lama_model()` на PIL-изображении и PIL-маске
-- [ ] При размере входа > 1536 px по большей стороне изображение и маска даунсемплятся перед LaMa и апсемплятся обратно
+- [ ] Для `lama` вызывается `_run_lama_onnx(pil_img, pil_mask)` через обёртку `_inpaint_with_lama`
+- [ ] При размере входа > 1536 px по большей стороне изображение и маска даунсемплятся перед LaMa и апсемплятся обратно (LANCZOS)
 - [ ] Результат сохраняется в `{uuid}.png`
 - [ ] Превью результата создаётся (`_generate_preview`)
 
@@ -312,7 +386,7 @@ git commit -m "feat(image): add lazy LaMa model loader"
 
 - [ ] **Step 1: Написать падающие тесты — TELEA inpaintRadius=10 + дилатация**
 
-В `backend/tests/test_image_inpaint.py` добавить импорты и helpers сверху (после существующего `test_lama_model_lazy_init`):
+В `backend/tests/test_image_inpaint.py` добавить импорты и helpers сверху (после существующих тестов `test_lama_session_lazy_init` / `test_run_lama_onnx_preserves_shape`):
 
 ```python
 import os
@@ -521,8 +595,7 @@ def _inpaint_with_lama(img, mask):
     pil_img = Image.fromarray(cv2.cvtColor(img_for_lama, cv2.COLOR_BGR2RGB))
     pil_mask = Image.fromarray(mask_for_lama)
 
-    lama = _get_lama_model()
-    result_pil = lama(pil_img, pil_mask)
+    result_pil = _run_lama_onnx(pil_img, pil_mask)
 
     if scale < 1.0:
         result_pil = result_pil.resize((w, h), Image.LANCZOS)
@@ -543,12 +616,11 @@ Expected: PASS.
 В том же файле добавить:
 
 ```python
-def test_lama_branch_calls_model_with_pil_images(task_dir_with_input):
-    """LaMa branch invokes _get_lama_model().__call__ with PIL Image + PIL mask."""
+def test_lama_branch_calls_run_lama_with_pil_images(task_dir_with_input, monkeypatch):
+    """LaMa branch invokes _run_lama_onnx with PIL Image + PIL mask."""
     fake_result = Image.new("RGB", (1024, 768), color=(128, 128, 128))
-    fake_lama = MagicMock(return_value=fake_result)
-
-    image_service._lama_model = fake_lama  # bypass lazy init
+    fake_run = MagicMock(return_value=fake_result)
+    monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
 
     result = image_service._remove_watermark_sync(
         task_dir_with_input,
@@ -556,23 +628,20 @@ def test_lama_branch_calls_model_with_pil_images(task_dir_with_input):
         "lama",
     )
 
-    assert fake_lama.call_count == 1
-    call_img, call_mask = fake_lama.call_args.args
+    assert fake_run.call_count == 1
+    call_img, call_mask = fake_run.call_args.args
     assert isinstance(call_img, Image.Image)
     assert isinstance(call_mask, Image.Image)
     assert call_img.size == (1024, 768)
     assert call_mask.size == (1024, 768)
     assert result["filename"].endswith(".png")
 
-    image_service._lama_model = None  # cleanup
 
-
-def test_lama_branch_downsamples_large_inputs(large_task_dir):
+def test_lama_branch_downsamples_large_inputs(large_task_dir, monkeypatch):
     """LaMa input > 1536 px on the longest side is downsampled before inference."""
     fake_result = Image.new("RGB", (1536, 1024), color=(128, 128, 128))
-    fake_lama = MagicMock(return_value=fake_result)
-
-    image_service._lama_model = fake_lama
+    fake_run = MagicMock(return_value=fake_result)
+    monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
 
     result = image_service._remove_watermark_sync(
         large_task_dir,
@@ -580,7 +649,7 @@ def test_lama_branch_downsamples_large_inputs(large_task_dir):
         "lama",
     )
 
-    call_img, _ = fake_lama.call_args.args
+    call_img, _ = fake_run.call_args.args
     assert max(call_img.size) == 1536  # downsampled from 3000
     assert result["filename"].endswith(".png")
 
@@ -588,8 +657,6 @@ def test_lama_branch_downsamples_large_inputs(large_task_dir):
     task_dir = os.path.join(settings.UPLOAD_DIR, large_task_dir)
     final = Image.open(os.path.join(task_dir, result["filename"]))
     assert final.size == (3000, 2000)
-
-    image_service._lama_model = None
 ```
 
 - [ ] **Step 6: Запустить все тесты в файле**
@@ -726,7 +793,7 @@ git commit -m "feat(image): switch rembg to birefnet-general-lite with alpha mat
 - Modify: `backend/app/main.py`
 
 **Acceptance Criteria:**
-- [ ] При старте приложения создаётся фоновый `asyncio.Task`, вызывающий `_get_rembg_session` и `_get_lama_model` через `asyncio.to_thread`
+- [ ] При старте приложения создаётся фоновый `asyncio.Task`, вызывающий `_get_rembg_session` и `_get_lama_session` через `asyncio.to_thread`
 - [ ] Ошибка прогрева логируется через `logger.exception`, но не прерывает старт
 - [ ] Приложение отвечает на `GET /health` сразу после старта (до завершения прогрева)
 
@@ -743,7 +810,7 @@ git commit -m "feat(image): switch rembg to birefnet-general-lite with alpha mat
         from app.services import image_service
         try:
             await asyncio.to_thread(image_service._get_rembg_session)
-            await asyncio.to_thread(image_service._get_lama_model)
+            await asyncio.to_thread(image_service._get_lama_session)
             logger.info("Image models warmed up")
         except Exception:
             logger.exception("Image models warmup failed")
@@ -763,7 +830,7 @@ curl -s http://localhost:8765/health
 kill %1
 ```
 
-Expected: `{"status":"ok"}` — приложение отвечает сразу, прогрев в логах виден («rembg birefnet-general-lite session initialised», «LaMa model initialised», «Image models warmed up»).
+Expected: `{"status":"ok"}` — приложение отвечает сразу, прогрев в логах виден («rembg birefnet-general-lite session initialised», «LaMa ONNX session initialised», «Image models warmed up»). При первом запуске дополнительно логируется скачивание весов LaMa (~200 МБ).
 
 - [ ] **Step 3: Commit**
 
@@ -1510,6 +1577,6 @@ cd frontend && bun run dev
 
 - Нет плейсхолдеров «TBD» / «добавить обработку ошибок» — все шаги содержат код
 - Все файлы, упомянутые в File Structure, покрыты задачами
-- Типы/сигнатуры согласованы: `_get_lama_model`, `_inpaint_with_lama`, `InpaintMethod`, `ImageCompareProps.transparencyGrid` — используются одинаково во всех задачах
+- Типы/сигнатуры согласованы: `_get_lama_session`, `_run_lama_onnx`, `_inpaint_with_lama` (обёртка), `InpaintMethod`, `ImageCompareProps.transparencyGrid` — используются одинаково во всех задачах
 - Зависимости задач понятны: Task 0 → 2, 4; Task 1 → 3; Task 2 → 3; Task 6 → 7, 8; Task 8 → 9
-- Риски из спеки (OOM BiRefNet-lite, тяжёлая зависимость simple-lama) — упомянуты в Task 0 и Task 4 с планом отката
+- Риски из спеки (OOM BiRefNet-lite, размер весов LaMa ONNX ~200 МБ) — упомянуты в Task 0 и Task 4 с планом отката
