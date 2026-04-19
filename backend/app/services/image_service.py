@@ -27,6 +27,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import cv2
 import numpy as np
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -515,19 +516,17 @@ def _remove_watermark_sync(
     mask_shapes: list,
     inpaint_method: str,
 ) -> dict:
-    """Synchronous watermark removal using OpenCV inpaint (runs in a worker thread).
+    """Synchronous watermark removal (runs in a worker thread).
 
-    Mask coordinates are normalised to [0, 1] by the frontend and scaled here
-    to actual image dimensions.
+    Routes to LaMa (deep-learning) or OpenCV classical inpaint (TELEA / NS)
+    based on inpaint_method. The mask is dilated with an 11x11 ellipse before
+    inpaint so slight imprecision in user drawing still covers watermark
+    boundaries (critical for LaMa quality).
 
     Returns dict with ``filename`` and ``file_size`` of the result.
     """
-    import cv2
-    import numpy as np
-
     task_dir = os.path.join(settings.UPLOAD_DIR, task_id)
 
-    # Find the uploaded input file
     input_path = _find_input_file(task_dir)
     if input_path is None:
         raise FileNotFoundError(f"No input file found in {task_dir}")
@@ -543,8 +542,7 @@ def _remove_watermark_sync(
 
     _update_status(task_id, "processing", progress=30.0)
 
-    # Build mask from normalised shapes — first draw additive shapes (white),
-    # then eraser shapes (black) to subtract from the mask.
+    # Build mask from normalised shapes — first additive (white), then erasers (black).
     def _get(shape, key, default=None):
         return shape.get(key, default) if isinstance(shape, dict) else getattr(shape, key, default)
 
@@ -569,7 +567,6 @@ def _remove_watermark_sync(
             x2, y2 = int(points[1][0] * w), int(points[1][1] * h)
             cv2.rectangle(mask, (x1, y1), (x2, y2), 255, -1)
 
-    # Eraser shapes subtract from the mask (draw in black / 0)
     for shape in eraser_shapes:
         shape_type = _get(shape, "type")
         points = _get(shape, "points")
@@ -583,27 +580,62 @@ def _remove_watermark_sync(
             thickness = max(1, int((brush_size or 0.02) * min(w, h)))
             cv2.polylines(mask, [pts], isClosed=False, color=0, thickness=thickness)
 
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    mask = cv2.dilate(mask, kernel, iterations=1)
+
     _update_status(task_id, "processing", progress=50.0)
 
-    # Select inpainting method
-    flags = cv2.INPAINT_TELEA if inpaint_method == "telea" else cv2.INPAINT_NS
-    result = cv2.inpaint(img, mask, 3, flags)
+    if inpaint_method == "lama":
+        result = _inpaint_with_lama(img, mask)
+    else:
+        flags = cv2.INPAINT_TELEA if inpaint_method == "telea" else cv2.INPAINT_NS
+        result = cv2.inpaint(img, mask, 10, flags)
 
     _update_status(task_id, "processing", progress=80.0)
 
-    # Save result
     result_name = f"{uuid.uuid4().hex}.png"
     result_path = os.path.join(task_dir, result_name)
     cv2.imwrite(result_path, result)
 
     file_size = os.path.getsize(result_path)
 
-    # Generate preview of result
     _generate_preview(result_path, task_dir)
 
     _update_status(task_id, "processing", progress=95.0)
 
     return {"filename": result_name, "file_size": file_size}
+
+
+def _inpaint_with_lama(img, mask):
+    """Run LaMa inpainting with safe downsample/upsample for large inputs.
+
+    LaMa on CPU with 3000+ px images is slow and risks OOM. Downsample to
+    max 1536 px on the longest side, inpaint, then upsample the result back
+    using LANCZOS so the saved file keeps the original resolution.
+    """
+    from PIL import Image
+
+    MAX_LAMA_SIDE = 1536
+    h, w = img.shape[:2]
+    scale = min(MAX_LAMA_SIDE / max(h, w), 1.0)
+
+    if scale < 1.0:
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_for_lama = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        mask_for_lama = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+    else:
+        img_for_lama = img
+        mask_for_lama = mask
+
+    pil_img = Image.fromarray(cv2.cvtColor(img_for_lama, cv2.COLOR_BGR2RGB))
+    pil_mask = Image.fromarray(mask_for_lama)
+
+    result_pil = _run_lama_onnx(pil_img, pil_mask)
+
+    if scale < 1.0:
+        result_pil = result_pil.resize((w, h), Image.LANCZOS)
+
+    return cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR)
 
 
 # ---------------------------------------------------------------------------
