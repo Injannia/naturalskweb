@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ALLOWED_IMAGE_EXTS: set[str] = {"jpg", "jpeg", "png", "webp", "bmp", "tiff"}
 MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20 MB
-INPAINT_METHODS: set[str] = {"telea", "ns"}
+INPAINT_METHODS: set[str] = {"lama", "telea", "ns"}
 
 
 # ---------------------------------------------------------------------------
