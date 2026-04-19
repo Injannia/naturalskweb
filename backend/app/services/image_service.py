@@ -57,18 +57,20 @@ _tasks_lock = threading.Lock()
 # Lazy-loaded rembg session
 # ---------------------------------------------------------------------------
 
+_REMBG_MODEL_NAME = "birefnet-general-lite"
+
 _rembg_session = None
 _rembg_lock = threading.Lock()
 
 
 def _get_rembg_session():
-    """Thread-safe lazy initialisation of the rembg u2netp session."""
+    """Thread-safe lazy initialisation of the rembg session."""
     global _rembg_session
     with _rembg_lock:
         if _rembg_session is None:
             from rembg import new_session
-            _rembg_session = new_session("u2netp")
-            logger.info("rembg u2netp session initialised")
+            _rembg_session = new_session(_REMBG_MODEL_NAME)
+            logger.info("rembg %s session initialised", _REMBG_MODEL_NAME)
         return _rembg_session
 
 
@@ -447,7 +449,15 @@ def _remove_bg_sync(task_id: str) -> dict:
     session = _get_rembg_session()
     _update_status(task_id, "processing", progress=40.0)
 
-    output_bytes = remove(input_bytes, session=session)
+    output_bytes = remove(
+        input_bytes,
+        session=session,
+        alpha_matting=True,
+        alpha_matting_foreground_threshold=240,
+        alpha_matting_background_threshold=10,
+        alpha_matting_erode_size=10,
+        post_process_mask=True,
+    )
     _update_status(task_id, "processing", progress=80.0)
 
     # Save result as PNG (preserves transparency)
