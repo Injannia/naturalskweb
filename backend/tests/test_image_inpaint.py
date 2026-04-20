@@ -61,25 +61,45 @@ def test_run_lama_onnx_requires_512_input(monkeypatch):
 
 @pytest.fixture
 def task_dir_with_input(tmp_path, monkeypatch):
-    """Create a task directory with a 1024x768 JPG input file."""
+    """Create a task directory with a 1024x768 JPG input file (noisy so the
+    LaMa uniform-background fast path does not short-circuit)."""
     task_id = "test-task-123"
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
     task_dir = tmp_path / task_id
     task_dir.mkdir()
-    arr = np.full((768, 1024, 3), 200, dtype=np.uint8)
+    rng = np.random.default_rng(42)
+    arr = rng.integers(50, 200, size=(768, 1024, 3), dtype=np.uint8)
     Image.fromarray(arr).save(task_dir / "input_abc.jpg")
     return task_id
 
 
 @pytest.fixture
 def large_task_dir(tmp_path, monkeypatch):
-    """Create a task directory with a 3000x2000 input file (triggers LaMa downsample)."""
+    """Create a task directory with a 3000x2000 noisy input file."""
     task_id = "test-large-456"
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
     task_dir = tmp_path / task_id
     task_dir.mkdir()
-    arr = np.full((2000, 3000, 3), 200, dtype=np.uint8)
+    rng = np.random.default_rng(7)
+    arr = rng.integers(50, 200, size=(2000, 3000, 3), dtype=np.uint8)
     Image.fromarray(arr).save(task_dir / "input_xyz.jpg")
+    return task_id
+
+
+@pytest.fixture
+def uniform_task_dir(tmp_path, monkeypatch):
+    """Create a task directory with a 1024x768 near-uniform white JPG.
+
+    Simulates the real-world case of a watermark on a flat/monotone canvas,
+    where LaMa tends to produce a slight color drift and we prefer to fill
+    with the surrounding median instead.
+    """
+    task_id = "test-uniform-789"
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+    task_dir = tmp_path / task_id
+    task_dir.mkdir()
+    arr = np.full((768, 1024, 3), 250, dtype=np.uint8)
+    Image.fromarray(arr).save(task_dir / "input_uni.jpg")
     return task_id
 
 
@@ -157,3 +177,82 @@ def test_lama_branch_preserves_original_resolution(large_task_dir, monkeypatch):
     task_dir = os.path.join(settings.UPLOAD_DIR, large_task_dir)
     final = Image.open(os.path.join(task_dir, result["filename"]))
     assert final.size == (3000, 2000)
+
+
+def test_lama_skips_network_for_uniform_crop(uniform_task_dir, monkeypatch):
+    """On a monotone background LaMa drifts colors, so we must fill with the
+    surrounding median and skip the network entirely."""
+    fake_run = MagicMock()
+    monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
+
+    result = image_service._remove_watermark_sync(
+        uniform_task_dir,
+        [_rect_shape()],
+        "lama",
+    )
+
+    assert fake_run.call_count == 0, "LaMa should be bypassed on uniform crops"
+
+    task_dir = os.path.join(settings.UPLOAD_DIR, uniform_task_dir)
+    final = np.array(Image.open(os.path.join(task_dir, result["filename"])))
+    # The masked region must contain the surrounding color (~250), not a drift.
+    h, w = final.shape[:2]
+    # Sample a pixel deep inside the rect mask (0.3..0.6 in both dims):
+    probe = final[int(h * 0.45), int(w * 0.45)]
+    assert np.all(np.abs(probe.astype(int) - 250) <= 3), (
+        f"Uniform fill expected ~250, got {probe}"
+    )
+
+
+def test_lama_still_runs_on_noisy_crop(task_dir_with_input, monkeypatch):
+    """When the crop has real texture variance, LaMa must still be invoked."""
+    fake_result = Image.new("RGB", (512, 512), color=(100, 100, 100))
+    fake_run = MagicMock(return_value=fake_result)
+    monkeypatch.setattr(image_service, "_run_lama_onnx", fake_run)
+
+    image_service._remove_watermark_sync(
+        task_dir_with_input,
+        [_rect_shape()],
+        "lama",
+    )
+
+    assert fake_run.call_count == 1
+
+
+def test_remove_bg_enables_alpha_matting(tmp_path, monkeypatch):
+    """_remove_bg_sync must request alpha matting from rembg for soft edges."""
+    import io
+
+    task_id = "bg-alpha-1"
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+    task_dir = tmp_path / task_id
+    task_dir.mkdir()
+    arr = np.full((120, 160, 3), 200, dtype=np.uint8)
+    Image.fromarray(arr).save(task_dir / "input_bg.jpg")
+
+    # Active-task cache entry so _update_status is a no-op instead of crashing.
+    image_service._active_tasks[task_id] = {"status": "processing", "progress": 0.0}
+
+    try:
+        buf = io.BytesIO()
+        Image.new("RGBA", (16, 16), (0, 0, 0, 0)).save(buf, "PNG")
+        fake_png_bytes = buf.getvalue()
+
+        fake_remove = MagicMock(return_value=fake_png_bytes)
+        fake_rembg = MagicMock()
+        fake_rembg.remove = fake_remove
+
+        fake_session = MagicMock()
+        monkeypatch.setattr(image_service, "_get_rembg_session", lambda: fake_session)
+
+        with patch.dict("sys.modules", {"rembg": fake_rembg}):
+            image_service._remove_bg_sync(task_id)
+
+        assert fake_remove.call_count == 1
+        kwargs = fake_remove.call_args.kwargs
+        assert kwargs.get("alpha_matting") is True
+        assert "alpha_matting_foreground_threshold" in kwargs
+        assert "alpha_matting_background_threshold" in kwargs
+        assert "alpha_matting_erode_size" in kwargs
+    finally:
+        image_service._active_tasks.pop(task_id, None)

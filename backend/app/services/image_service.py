@@ -440,6 +440,10 @@ def _remove_bg_sync(task_id: str) -> dict:
         input_bytes,
         session=session,
         post_process_mask=True,
+        alpha_matting=True,
+        alpha_matting_foreground_threshold=240,
+        alpha_matting_background_threshold=10,
+        alpha_matting_erode_size=10,
     )
     _update_status(task_id, "processing", progress=80.0)
 
@@ -628,6 +632,21 @@ def _inpaint_with_lama(img, mask):
     y0 = max(0, int(ys.min()) - pad)
     x1 = min(W, int(xs.max()) + pad + 1)
     y1 = min(H, int(ys.max()) + pad + 1)
+
+    # Uniform-background fast path: LaMa drifts colors on monotone fills
+    # (white background + small dark watermark → faint tint). If the
+    # pixels around the mask have very low variance, fill with their
+    # median instead and skip the network.
+    bbox_img = img[y0:y1, x0:x1]
+    bbox_mask = mask[y0:y1, x0:x1]
+    surrounding = bbox_img[bbox_mask == 0].reshape(-1, 3)
+    if surrounding.shape[0] >= 32:
+        std_per_channel = surrounding.std(axis=0)
+        if float(std_per_channel.max()) < 8.0:
+            fill_color = np.median(surrounding, axis=0).astype(np.uint8)
+            out = img.copy()
+            out[y0:y1, x0:x1][bbox_mask > 0] = fill_color
+            return out
 
     # Grow window to a square centered on the bbox so LaMa gets symmetric context.
     side = max(x1 - x0, y1 - y0)
