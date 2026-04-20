@@ -226,9 +226,23 @@ async def delete_task_permanent(task_id: str, user_id: int, db: AsyncSession) ->
 
 - **Существующие тесты image-модуля** (`test_image_inpaint.py`, `test_image_preview_lookup.py`, `test_image_schema.py`) — не должны сломаться. При запуске всей pytest-сьюты из `backend/tests/` они должны оставаться зелёными.
 
-### Frontend
+### Frontend unit (Vitest — добавляется в рамках этого изменения)
 
-Фронтенд unit-test runner в проекте не сконфигурирован (`frontend/package.json` не содержит Vitest / Jest). Настраивать его в рамках этого изменения — вне scope. Проверка фронтенда — только ручная.
+Проект использует Vite, поэтому Vitest — естественный выбор (без отдельной сборки тестов, общий конфиг).
+
+**Новые файлы/записи:**
+
+- `frontend/package.json` — devDependencies: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`. Скрипты: `"test": "vitest"`, `"test:run": "vitest run"`.
+- `frontend/vite.config.ts` — расширяем `test` блоком (`environment: 'jsdom'`, `setupFiles: ['./src/test/setup.ts']`, `globals: true`).
+- `frontend/src/test/setup.ts` — импортирует `@testing-library/jest-dom`; стабит глобальный `IntersectionObserver` (jsdom его не даёт).
+- Обновить `frontend/tsconfig.json` (`types: ["vitest/globals", "@testing-library/jest-dom"]`).
+
+**Тесты:**
+
+- `ImageProgress.test.tsx`: рендерится корректно для каждой комбинации `(status, isHistory)` — набор кнопок, прогресс-бар, thumbnail/fallback; обработчики `onDismiss`, `onRestore`, `onDelete`, `onDownload` вызываются с `task_id`.
+- `Thumbnail.test.tsx`: освобождает blob URL при unmount (spyOn `URL.revokeObjectURL`); fallback на иконку при 404; AbortController отменяет in-flight запрос при unmount.
+
+### Ручная верификация
 
 ### Ручная верификация
 
@@ -275,3 +289,11 @@ async def delete_task_permanent(task_id: str, user_id: int, db: AsyncSession) ->
 - `frontend/src/pages/ImageProcessor/imageApi.ts` — добавить `deleteTaskPermanent`.
 - `frontend/src/pages/ImageProcessor/components/TaskHistory.tsx` — удалить.
 - `frontend/src/pages/ImageProcessor/components/TaskHistory.module.css` — удалить.
+
+**Frontend test infrastructure (Vitest):**
+- `frontend/package.json` — добавить devDependencies и скрипты.
+- `frontend/vite.config.ts` — добавить `test` блок.
+- `frontend/tsconfig.json` — добавить `types` для Vitest / Testing Library.
+- `frontend/src/test/setup.ts` — новый файл.
+- `frontend/src/pages/ImageProcessor/components/ImageProgress.test.tsx` — новый.
+- `frontend/src/pages/ImageProcessor/components/Thumbnail.test.tsx` — новый.
