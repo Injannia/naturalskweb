@@ -1,8 +1,10 @@
+import os
 import uuid
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.models.download_task import DownloadTask
 from app.models.shared_file import SharedFile
 from app.schemas.youtube import DownloadRequest
@@ -135,3 +137,45 @@ async def test_find_cached_shared_file_returns_none_when_file_missing(db_session
         db=db_session,
     )
     assert result is None
+
+
+async def test_cache_hit_status_reflects_file_on_disk(db_session, tmp_path, monkeypatch):
+    """create_cached_task должна вернуть file_exists=True когда файл реально лежит на диске."""
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
+    sf = await _insert_shared_file(db_session)
+    shared_dir = tmp_path / sf.id
+    shared_dir.mkdir(parents=True)
+    (shared_dir / sf.filename).write_bytes(b"fake")
+
+    status = await youtube_service.create_cached_task(
+        task_id=str(uuid.uuid4()),
+        user_id=42,
+        request=_make_request(),
+        shared_file=sf,
+        video_id="dQw4w9WgXcQ",
+        db=db_session,
+    )
+
+    assert status.status == "ready"
+    assert status.file_exists is True
+
+
+async def test_cache_hit_status_reports_missing_file(db_session, tmp_path, monkeypatch):
+    """create_cached_task должна вернуть file_exists=False если файла нет на диске."""
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
+    sf = await _insert_shared_file(db_session)
+    # Файл НЕ создаём на диске
+
+    status = await youtube_service.create_cached_task(
+        task_id=str(uuid.uuid4()),
+        user_id=42,
+        request=_make_request(),
+        shared_file=sf,
+        video_id="dQw4w9WgXcQ",
+        db=db_session,
+    )
+
+    assert status.status == "ready"
+    assert status.file_exists is False

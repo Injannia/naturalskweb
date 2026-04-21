@@ -723,6 +723,7 @@ async def wait_for_source_task(
                 file_size=source.file_size,
                 download_url=f"/api/youtube/file/{watcher_task_id}",
                 completed_at=completed_now,
+                file_exists=True,
             )
             await _persist_task(
                 watcher_task_id,
@@ -856,7 +857,8 @@ async def create_cached_task(
     await db.commit()
     await db.refresh(row)
 
-    return _row_to_status(row)
+    # File existence was just verified in find_cached_shared_file, so reflect that.
+    return _row_to_status(row, check_file=True)
 
 
 async def get_download_progress(task_id: str) -> DownloadStatus | None:
@@ -910,7 +912,15 @@ async def get_user_tasks(user_id: int, limit: int = 50) -> list[DownloadStatus]:
         with _tasks_lock:
             cached = _active_tasks.get(row.id)
         if cached is not None:
-            statuses.append(cached)
+            # Defense-in-depth: for terminal states, trust disk over stale
+            # in-memory file_exists (which can lag behind actual status).
+            if cached.status == "ready" and row.filename and row.shared_file_id:
+                shared_dir = os.path.join(settings.UPLOAD_DIR, row.shared_file_id)
+                file_path = locate_task_file(shared_dir, row.filename)
+                disk_exists = file_path is not None and os.path.isfile(file_path)
+                statuses.append(cached.model_copy(update={"file_exists": disk_exists}))
+            else:
+                statuses.append(cached)
         else:
             statuses.append(_row_to_status(row, check_file=True))
 
@@ -1264,6 +1274,7 @@ async def download_video(
             download_url=download_url,
             file_size=final_file_size,
             completed_at=completed_now,
+            file_exists=True,
         )
 
         # Persist terminal state to DB

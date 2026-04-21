@@ -498,6 +498,8 @@ export default function YouTubePage() {
         created_at: created_at ?? null,
         completed_at: response.completed_at ?? null,
         cached: isCachedHit,
+        // Cache hits skip polling, so seed file_exists from the response.
+        file_exists: isCachedHit ? response.file_exists ?? true : undefined,
       }
 
       setTasks((prev) => [newTask, ...prev])
@@ -698,6 +700,8 @@ export default function YouTubePage() {
           created_at: created_at ?? null,
           completed_at: completed_at ?? null,
           cached: isCachedHit,
+          // Cache hits skip polling, so seed file_exists from the response.
+          file_exists: isCachedHit ? response.file_exists ?? true : undefined,
         }
 
         // Dismiss the old failed/cancelled task in the backend so it does not

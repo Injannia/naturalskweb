@@ -73,6 +73,7 @@ export interface DownloadStartResponse {
   completed_at?: string | null
   // True when the file was served from the server-side cache
   cached?: boolean
+  file_exists?: boolean
 }
 
 export interface DownloadTask {
