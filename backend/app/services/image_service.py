@@ -22,6 +22,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -898,4 +899,32 @@ async def restore_task(task_id: str, user_id: int, db: AsyncSession) -> bool:
     row.updated_at = datetime.now(timezone.utc)
     await db.commit()
     logger.debug("Image task %s restored by user %d", task_id, user_id)
+    return True
+
+
+async def delete_task_permanent(
+    task_id: str, user_id: int, db: AsyncSession
+) -> bool:
+    """Permanently delete a task — removes file from disk and DB record.
+
+    Only allowed for terminal tasks (ready/error). If files are already
+    cleaned up, only the DB record is removed.
+
+    Returns True if found and deleted, False otherwise.
+    """
+    row = await get_task_for_user(task_id, user_id, db)
+    if row is None:
+        return False
+    if row.status not in TERMINAL_STATUSES:
+        return False
+
+    task_dir = os.path.join(settings.UPLOAD_DIR, task_id)
+    shutil.rmtree(task_dir, ignore_errors=True)
+
+    with _tasks_lock:
+        _active_tasks.pop(task_id, None)
+
+    await db.delete(row)
+    await db.commit()
+    logger.info("Image task %s permanently deleted by user %d", task_id, user_id)
     return True
