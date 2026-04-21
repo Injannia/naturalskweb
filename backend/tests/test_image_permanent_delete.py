@@ -1,28 +1,13 @@
 """Tests for image_service.delete_task_permanent."""
-import os
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import text
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import Base
 from app.models.image_task import ImageTask
 from app.services import image_service
-
-
-@pytest_asyncio.fixture
-async def db_session():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        await conn.execute(text("PRAGMA foreign_keys = OFF"))
-        await conn.run_sync(Base.metadata.create_all)
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with factory() as session:
-        yield session
-    await engine.dispose()
 
 
 async def _make_task(
@@ -67,7 +52,6 @@ async def test_delete_permanent_happy_path(db_session, tmp_path, monkeypatch):
     )
     assert result is True
     assert not task_dir.exists()
-    from sqlalchemy import select
     found = (await db_session.execute(select(ImageTask).where(ImageTask.id == task.id))).scalar_one_or_none()
     assert found is None
 
@@ -80,7 +64,6 @@ async def test_delete_permanent_wrong_user(db_session, tmp_path, monkeypatch):
         task_id=task.id, user_id=2, db=db_session,
     )
     assert result is False
-    from sqlalchemy import select
     found = (await db_session.execute(select(ImageTask).where(ImageTask.id == task.id))).scalar_one_or_none()
     assert found is not None
 
