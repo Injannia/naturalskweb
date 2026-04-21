@@ -16,6 +16,7 @@ GET    /api/image/tasks/history           — list hidden tasks
 DELETE /api/image/task/{task_id}          — dismiss (soft-delete) a task
 DELETE /api/image/tasks/completed         — dismiss all terminal tasks
 POST   /api/image/task/{task_id}/restore  — un-dismiss a task
+DELETE /api/image/task/{task_id}/permanent — permanently delete a terminal task
 """
 
 import asyncio
