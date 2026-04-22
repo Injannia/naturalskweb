@@ -28,6 +28,8 @@ describe('Thumbnail', () => {
       />,
     )
     expect(screen.getByTestId('thumbnail-fallback')).toBeInTheDocument()
+    // Дождаться, пока loader резолвится, чтобы не оставить висящий setState вне act.
+    await waitFor(() => expect(imageApi.getPreview).toHaveBeenCalled())
   })
 
   it('использует getResultPreview при status=ready', async () => {
