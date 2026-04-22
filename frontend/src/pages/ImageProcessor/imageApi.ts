@@ -108,6 +108,10 @@ export const imageApi = {
     return api.post(`/image/task/${taskId}/restore`).then(() => undefined)
   },
 
+  deleteTaskPermanent(taskId: string): Promise<void> {
+    return api.delete(`/image/task/${taskId}/permanent`).then(() => undefined)
+  },
+
   getQuota(): Promise<ImageQuota> {
     return api
       .get<ImageQuota>('/image/quota')
