@@ -92,4 +92,52 @@ describe('Thumbnail', () => {
       expect(screen.getByTestId('thumbnail-fallback')).toBeInTheDocument()
     })
   })
+
+  it('освобождает старый URL при смене taskId', async () => {
+    vi.mocked(imageApi.getResultPreview)
+      .mockResolvedValueOnce('blob:A')
+      .mockResolvedValueOnce('blob:B')
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+
+    const { rerender } = render(
+      <Thumbnail taskId="task-A" status="ready" fileExists={true} operation="remove_bg" />,
+    )
+    await waitFor(() => {
+      expect(imageApi.getResultPreview).toHaveBeenCalledWith('task-A')
+    })
+    // Дать React применить setUrl('blob:A') — после waitFor блоб уже во стейте.
+
+    rerender(
+      <Thumbnail taskId="task-B" status="ready" fileExists={true} operation="remove_bg" />,
+    )
+    await waitFor(() => {
+      expect(imageApi.getResultPreview).toHaveBeenCalledWith('task-B')
+    })
+    await waitFor(() => {
+      expect(revokeSpy).toHaveBeenCalledWith('blob:A')
+    })
+  })
+
+  it('освобождает блоб, если loader резолвится после unmount', async () => {
+    let resolveLoader: (value: string) => void = () => {}
+    const deferred = new Promise<string>((res) => {
+      resolveLoader = res
+    })
+    vi.mocked(imageApi.getResultPreview).mockReturnValue(deferred)
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+
+    const { unmount } = render(
+      <Thumbnail taskId="task-late" status="ready" fileExists={true} operation="remove_bg" />,
+    )
+    // Ждём, пока loader будет вызван (после IO-мока и effect 2).
+    await waitFor(() => {
+      expect(imageApi.getResultPreview).toHaveBeenCalledWith('task-late')
+    })
+    unmount()
+    resolveLoader('blob:late')
+    // Даём микрозадаче разрешиться:
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(revokeSpy).toHaveBeenCalledWith('blob:late')
+  })
 })
