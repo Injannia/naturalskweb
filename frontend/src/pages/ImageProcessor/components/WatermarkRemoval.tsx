@@ -34,7 +34,6 @@ export default function WatermarkRemoval({
   const [previewUrl, setPreviewUrl] = useState('')
   const [resultPreviewUrl, setResultPreviewUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [originalFilename, setOriginalFilename] = useState('')
   const [originalExt, setOriginalExt] = useState('')
 
   // Canvas state — остаётся локальным
@@ -106,7 +105,6 @@ export default function WatermarkRemoval({
 
   const handleUploaded = useCallback(async (response: ImageUploadResponse) => {
     setTaskId(response.task_id)
-    setOriginalFilename(response.original_filename)
     setOriginalExt(response.original_ext)
     try {
       const url = await imageApi.getPreview(response.task_id)
@@ -151,7 +149,7 @@ export default function WatermarkRemoval({
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
     } catch {
       toast.error('Не удалось скачать результат.')
     }
@@ -165,7 +163,6 @@ export default function WatermarkRemoval({
     setPreviewUrl('')
     setResultPreviewUrl('')
     setError(null)
-    setOriginalFilename('')
     setOriginalExt('')
     setShapes([])
     setImageNaturalSize({ width: 0, height: 0 })
@@ -355,9 +352,6 @@ export default function WatermarkRemoval({
           </button>
         </div>
       )}
-
-      {/* Держим originalFilename в state для совместимости с перерасчётом */}
-      {originalFilename && null}
     </div>
   )
 }

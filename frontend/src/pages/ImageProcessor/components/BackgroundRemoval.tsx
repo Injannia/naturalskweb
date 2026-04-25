@@ -27,7 +27,6 @@ export default function BackgroundRemoval({
   const [previewUrl, setPreviewUrl] = useState('')
   const [resultPreviewUrl, setResultPreviewUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [originalFilename, setOriginalFilename] = useState('')
 
   // Статус из внешнего источника (список задач в родителе)
   const processing = currentTask?.status === 'processing' || currentTask?.status === 'uploading'
@@ -79,7 +78,6 @@ export default function BackgroundRemoval({
 
   const handleUploaded = useCallback(async (response: ImageUploadResponse) => {
     setTaskId(response.task_id)
-    setOriginalFilename(response.original_filename)
     try {
       const url = await imageApi.getPreview(response.task_id)
       setPreviewUrl(url)
@@ -120,7 +118,7 @@ export default function BackgroundRemoval({
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
     } catch {
       toast.error('Не удалось скачать результат.')
     }
@@ -134,17 +132,8 @@ export default function BackgroundRemoval({
     setPreviewUrl('')
     setResultPreviewUrl('')
     setError(null)
-    setOriginalFilename('')
     onReset()
   }, [previewUrl, resultPreviewUrl, onReset])
-
-  // Когда родитель сбрасывает currentTask извне (permanent-delete, dismiss из списка) —
-  // синхронизируем локальное состояние
-  useEffect(() => {
-    if (currentTask === null && (localPhase === 'preview' || localPhase === 'error')) {
-      // Уже отдыхаем в idle или ещё в работе — ничего не делаем
-    }
-  }, [currentTask, localPhase])
 
   // ── Render ──
 
@@ -218,9 +207,6 @@ export default function BackgroundRemoval({
           </button>
         </div>
       )}
-
-      {/* originalFilename используется где-то ещё? — держим в state для download-имени через currentTask */}
-      {originalFilename && null}
     </div>
   )
 }

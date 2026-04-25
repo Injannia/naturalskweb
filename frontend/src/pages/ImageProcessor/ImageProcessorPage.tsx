@@ -196,18 +196,20 @@ export default function ImageProcessorPage() {
     setRestoringId(taskId)
     try {
       await imageApi.restoreTask(taskId)
-      const restored = historyTasks.find((h) => h.task_id === taskId)
-      if (restored) {
-        setTasks((prev) => [restored, ...prev])
-        setHistoryTasks((prev) => prev.filter((h) => h.task_id !== taskId))
-      }
+      setHistoryTasks((prev) => {
+        const restored = prev.find((h) => h.task_id === taskId)
+        if (restored) {
+          setTasks((t) => [restored, ...t])
+        }
+        return prev.filter((h) => h.task_id !== taskId)
+      })
       toast.info('Задача восстановлена.')
     } catch {
       toast.error('Не удалось восстановить задачу.')
     } finally {
       setRestoringId(null)
     }
-  }, [historyTasks])
+  }, [])
 
   const handleDownload = useCallback(async (taskId: string) => {
     setDownloadingId(taskId)
@@ -220,7 +222,7 @@ export default function ImageProcessorPage() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
     } catch {
       toast.error('Не удалось скачать файл. Возможно, он уже удалён.')
     } finally {
