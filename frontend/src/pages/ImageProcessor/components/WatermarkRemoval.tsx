@@ -86,6 +86,15 @@ export default function WatermarkRemoval({
     }
   }, [ready, currentTask, resultPreviewUrl])
 
+  // ── После F5 локальный previewUrl пуст, но задача уже ready — подтягиваем оригинал ──
+  useEffect(() => {
+    if (ready && currentTask && !previewUrl) {
+      imageApi.getPreview(currentTask.task_id)
+        .then(setPreviewUrl)
+        .catch(() => undefined)
+    }
+  }, [ready, currentTask, previewUrl])
+
   // ── Когда задача становится error — показываем сообщение ──
   useEffect(() => {
     if (errored && currentTask?.error) {

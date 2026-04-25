@@ -173,27 +173,24 @@ export default function ImageProcessorPage() {
     }
     setTasks((prev) => {
       const terminal = prev.filter((t) => TERMINAL_STATUSES.has(t.status))
+      const remaining = prev.filter((t) => !TERMINAL_STATUSES.has(t.status))
       if (terminal.length > 0) {
+        const remainingIds = new Set(remaining.map((t) => t.task_id))
         queueMicrotask(() => {
           setHistoryTasks((h) => {
             const existing = new Set(h.map((i) => i.task_id))
             const deduped = terminal.filter((t) => !existing.has(t.task_id))
             return [...deduped, ...h]
           })
+          setCurrentTaskIds((cur) => ({
+            bg: cur.bg && remainingIds.has(cur.bg) ? cur.bg : null,
+            watermark: cur.watermark && remainingIds.has(cur.watermark) ? cur.watermark : null,
+          }))
         })
       }
-      return prev.filter((t) => !TERMINAL_STATUSES.has(t.status))
+      return remaining
     })
-    setCurrentTaskIds((prev) => {
-      const next = { ...prev }
-      const stillActive = new Set(
-        tasks.filter((t) => !TERMINAL_STATUSES.has(t.status)).map((t) => t.task_id),
-      )
-      if (next.bg && !stillActive.has(next.bg)) next.bg = null
-      if (next.watermark && !stillActive.has(next.watermark)) next.watermark = null
-      return next
-    })
-  }, [tasks])
+  }, [])
 
   const handleRestore = useCallback(async (taskId: string) => {
     setRestoringId(taskId)
@@ -235,6 +232,11 @@ export default function ImageProcessorPage() {
     setDeletingId(taskId)
     try {
       await imageApi.deleteTaskPermanent(taskId)
+      const interval = pollRefs.current.get(taskId)
+      if (interval) {
+        clearInterval(interval)
+        pollRefs.current.delete(taskId)
+      }
       setTasks((prev) => prev.filter((t) => t.task_id !== taskId))
       setHistoryTasks((prev) => prev.filter((h) => h.task_id !== taskId))
       setCurrentTaskIds((prev) => {
