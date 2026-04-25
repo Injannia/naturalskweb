@@ -1,41 +1,72 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Download, RotateCcw, Loader2, Wand2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import { imageApi } from '../imageApi'
-import type { BgPhase, ImageUploadResponse } from '../types'
+import type { ImageTaskListItem, ImageUploadResponse } from '../types'
 import { ImageUploader } from './ImageUploader'
 import { ImageCompare } from './ImageCompare'
 import styles from './BackgroundRemoval.module.css'
 
+type LocalPhase = 'idle' | 'preview' | 'error'
+
 interface BackgroundRemovalProps {
+  currentTask: ImageTaskListItem | null
+  onProcessStart: (task: ImageTaskListItem) => void
+  onReset: () => void
   onQuotaChange?: () => void
 }
 
-export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalProps) {
-  const [phase, setPhase] = useState<BgPhase>('idle')
+export default function BackgroundRemoval({
+  currentTask,
+  onProcessStart,
+  onReset,
+}: BackgroundRemovalProps) {
+  const [localPhase, setLocalPhase] = useState<LocalPhase>('idle')
   const [taskId, setTaskId] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [resultPreviewUrl, setResultPreviewUrl] = useState('')
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [originalFilename, setOriginalFilename] = useState('')
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pollCountRef = useRef(0)
-  const MAX_POLL_COUNT = 150 // 5 minutes at 2s interval
+  // Статус из внешнего источника (список задач в родителе)
+  const processing = currentTask?.status === 'processing' || currentTask?.status === 'uploading'
+  const ready = currentTask?.status === 'ready'
+  const errored = currentTask?.status === 'error'
 
-  // ── Cleanup polling and revoke blob URLs on unmount ──
+  // Отображаемая фаза: если есть currentTask — управляет она, иначе локальная
+  const phase: 'idle' | 'preview' | 'processing' | 'result' | 'error' = processing
+    ? 'processing'
+    : ready
+      ? 'result'
+      : errored
+        ? 'error'
+        : localPhase
+
+  // Revoke blob URLs on unmount
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Handlers ──
+  // Когда задача становится ready — подтягиваем result-preview для ImageCompare
+  useEffect(() => {
+    if (ready && currentTask && !resultPreviewUrl) {
+      imageApi.getResultPreview(currentTask.task_id)
+        .then(setResultPreviewUrl)
+        .catch(() => undefined)
+    }
+  }, [ready, currentTask, resultPreviewUrl])
+
+  // Когда задача становится error — показываем сообщение
+  useEffect(() => {
+    if (errored && currentTask?.error) {
+      setError(currentTask.error)
+    }
+  }, [errored, currentTask])
 
   const handleUploaded = useCallback(async (response: ImageUploadResponse) => {
     setTaskId(response.task_id)
@@ -43,72 +74,39 @@ export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalPr
     try {
       const url = await imageApi.getPreview(response.task_id)
       setPreviewUrl(url)
-      setPhase('preview')
+      setLocalPhase('preview')
     } catch {
       setError('Не удалось загрузить превью')
-      setPhase('error')
+      setLocalPhase('error')
     }
   }, [])
 
   const handleRemoveBg = useCallback(async () => {
     if (!taskId) return
-    setPhase('processing')
-    setProgress(0)
-
     try {
-      await imageApi.removeBg(taskId)
-
-      // Start polling
-      pollCountRef.current = 0
-      pollRef.current = setInterval(async () => {
-        pollCountRef.current += 1
-        if (pollCountRef.current > MAX_POLL_COUNT) {
-          if (pollRef.current) clearInterval(pollRef.current)
-          pollRef.current = null
-          setError('Обработка заняла слишком много времени')
-          setPhase('error')
-          return
-        }
-        try {
-          const status = await imageApi.getStatus(taskId)
-          setProgress(status.progress)
-
-          if (status.status === 'ready') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            try {
-              const resultUrl = await imageApi.getResultPreview(taskId)
-              setResultPreviewUrl(resultUrl)
-            } catch { /* preview load failed, proceed anyway */ }
-            setPhase('result')
-            onQuotaChange?.()
-          } else if (status.status === 'error') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            setError(status.error ?? 'Неизвестная ошибка')
-            setPhase('error')
-          }
-        } catch {
-          // Transient network error — keep polling
-        }
-      }, 2000)
+      const task = await imageApi.removeBg(taskId)
+      // Передаём родителю — он добавит карточку и запустит polling
+      onProcessStart({
+        ...task,
+        file_exists: false,
+      })
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
         'Не удалось запустить обработку'
       setError(message)
-      setPhase('error')
+      setLocalPhase('error')
     }
-  }, [taskId, onQuotaChange])
+  }, [taskId, onProcessStart])
 
   const handleDownload = useCallback(async () => {
-    if (!taskId) return
+    if (!currentTask) return
     try {
-      const { blob } = await imageApi.downloadResult(taskId)
+      const { blob } = await imageApi.downloadResult(currentTask.task_id)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const baseName = originalFilename.replace(/\.[^.]+$/, '')
+      const baseName = currentTask.original_filename.replace(/\.[^.]+$/, '')
       a.download = `${baseName}_no_bg.png`
       document.body.appendChild(a)
       a.click()
@@ -117,25 +115,29 @@ export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalPr
     } catch {
       toast.error('Не удалось скачать результат.')
     }
-  }, [taskId, originalFilename])
+  }, [currentTask])
 
   const handleReset = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
-    setPhase('idle')
+    setLocalPhase('idle')
     setTaskId(null)
     setPreviewUrl('')
     setResultPreviewUrl('')
-    setProgress(0)
     setError(null)
     setOriginalFilename('')
-  }, [previewUrl, resultPreviewUrl])
+    onReset()
+  }, [previewUrl, resultPreviewUrl, onReset])
 
-  // ── Render by phase ──
+  // Когда родитель сбрасывает currentTask извне (permanent-delete, dismiss из списка) —
+  // синхронизируем локальное состояние
+  useEffect(() => {
+    if (currentTask === null && (localPhase === 'preview' || localPhase === 'error')) {
+      // Уже отдыхаем в idle или ещё в работе — ничего не делаем
+    }
+  }, [currentTask, localPhase])
+
+  // ── Render ──
 
   return (
     <div className={styles.container}>
@@ -162,21 +164,31 @@ export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalPr
       {phase === 'processing' && (
         <div className={styles.processingSection}>
           <Loader2 size={32} className={styles.iconSpin} aria-hidden="true" />
-          <p className={styles.processingText}>Обработка... {progress}%</p>
+          <p className={styles.processingText}>
+            Обработка... {currentTask?.progress ?? 0}%
+          </p>
           <div className={styles.progressBarWrap}>
             <div
               className={styles.progressBarFill}
-              style={{ width: `${progress}%` }}
+              style={{ width: `${currentTask?.progress ?? 0}%` }}
             />
           </div>
         </div>
       )}
 
-      {phase === 'result' && (
+      {phase === 'result' && currentTask && (
         <div className={styles.resultSection}>
-          <ImageCompare beforeSrc={previewUrl} afterSrc={resultPreviewUrl} transparencyGrid />
+          <ImageCompare
+            beforeSrc={previewUrl}
+            afterSrc={resultPreviewUrl}
+            transparencyGrid
+          />
           <div className={styles.resultActions}>
-            <button className={styles.successBtn} onClick={handleDownload}>
+            <button
+              className={styles.successBtn}
+              onClick={handleDownload}
+              disabled={!currentTask.file_exists}
+            >
               <Download size={16} aria-hidden="true" />
               Скачать PNG
             </button>
@@ -190,13 +202,16 @@ export default function BackgroundRemoval({ onQuotaChange }: BackgroundRemovalPr
 
       {phase === 'error' && (
         <div className={styles.errorSection}>
-          <p className={styles.errorMessage}>{error}</p>
+          <p className={styles.errorMessage}>{error ?? currentTask?.error}</p>
           <button className={styles.secondaryBtn} onClick={handleReset}>
             <RotateCcw size={16} aria-hidden="true" />
             Попробовать снова
           </button>
         </div>
       )}
+
+      {/* originalFilename используется где-то ещё? — держим в state для download-имени через currentTask */}
+      {originalFilename && null}
     </div>
   )
 }
