@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Download, RotateCcw, Loader2, Paintbrush, Square, Eraser, Undo2, Trash2, Play } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -100,6 +100,28 @@ export default function WatermarkRemoval({
       setError(currentTask.error)
     }
   }, [errored, currentTask])
+
+  // ── Когда родитель отвязывает currentTask (dismiss / permanent-delete карточки),
+  // сбрасываем локальную фазу + маску — иначе редактор остаётся с устаревшим
+  // blob и shape-state предыдущей задачи. ──
+  const lastBoundTaskIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (currentTask) {
+      lastBoundTaskIdRef.current = currentTask.task_id
+    } else if (lastBoundTaskIdRef.current !== null) {
+      lastBoundTaskIdRef.current = null
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
+      setLocalPhase('idle')
+      setTaskId(null)
+      setPreviewUrl('')
+      setResultPreviewUrl('')
+      setError(null)
+      setOriginalExt('')
+      setShapes([])
+      setImageNaturalSize({ width: 0, height: 0 })
+    }
+  }, [currentTask, previewUrl, resultPreviewUrl])
 
   // ── Handlers ──
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Download, RotateCcw, Loader2, Wand2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -68,6 +68,25 @@ export default function BackgroundRemoval({
         .catch(() => undefined)
     }
   }, [ready, currentTask, previewUrl])
+
+  // Когда родитель отвязывает currentTask (dismiss / permanent-delete карточки),
+  // сбрасываем локальную фазу — иначе редактор остаётся в preview/result/error
+  // c устаревшим blob предыдущей задачи.
+  const lastBoundTaskIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (currentTask) {
+      lastBoundTaskIdRef.current = currentTask.task_id
+    } else if (lastBoundTaskIdRef.current !== null) {
+      lastBoundTaskIdRef.current = null
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
+      setLocalPhase('idle')
+      setTaskId(null)
+      setPreviewUrl('')
+      setResultPreviewUrl('')
+      setError(null)
+    }
+  }, [currentTask, previewUrl, resultPreviewUrl])
 
   // Когда задача становится error — показываем сообщение
   useEffect(() => {
