@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +10,7 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.core import token_blacklist
 from app.models.user import User
-from app.models.audit import ActiveSession
+from app.models.audit import ActiveSession  # noqa: F401  (re-exported for callers)
 
 security_scheme = HTTPBearer()
 
@@ -39,8 +41,13 @@ async def get_current_user(
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
 
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.is_deleted:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден или отключён")
+
+    if user.kicked_at:
+        iat = payload.get("iat")
+        if iat and datetime.fromtimestamp(iat, tz=timezone.utc) < user.kicked_at:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
     return user
 
@@ -48,4 +55,10 @@ async def get_current_user(
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Требуются права администратора")
+    return user
+
+
+async def require_superadmin(user: User = Depends(get_current_user)) -> User:
+    if user.role != "superadmin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Требуются права суперадминистратора")
     return user

@@ -45,6 +45,10 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
         await log_audit(db, None, audit_actions.LOGIN_FAILED, request, {"reason": "user_not_found", "username": body.username})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
 
+    if user.is_deleted:
+        await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "deleted"})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
+
     if not user.is_active:
         await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "inactive"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт отключён")
