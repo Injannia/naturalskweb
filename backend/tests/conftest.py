@@ -6,6 +6,7 @@ from sqlalchemy import text
 os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-long-enough-for-hmac-sha256-ok!!")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("UPLOAD_DIR", "/tmp/naturalsk_test_uploads")
+os.environ.setdefault("AVATARS_DIR", "/tmp/naturalsk_test_avatars")
 
 
 @pytest_asyncio.fixture(scope="function")

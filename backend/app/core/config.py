@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, model_validator
 
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/naturalsk.db"
     UPLOAD_DIR: str = "./uploads"
-    AVATARS_DIR: str = "./data/avatars"
+    AVATARS_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "avatars"))
     FILE_TTL_HOURS: int = 6
     MAX_LOGIN_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_MINUTES: int = 15
