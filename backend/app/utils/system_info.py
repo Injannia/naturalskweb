@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import time
 
 _CACHE_TTL = 3600
@@ -21,11 +22,10 @@ def get_tool_versions() -> dict:
     now = time.time()
     if _cache is not None and now - _cache_at < _CACHE_TTL:
         return _cache
-    python_line = _run_first_line(["python", "--version"])
+    python_version = sys.version.split()[0]
     ffmpeg_line = _run_first_line(["ffmpeg", "-version"])
     yt_dlp_line = _run_first_line(["yt-dlp", "--version"])
 
-    python_version = python_line.replace("Python ", "") if python_line != "недоступно" else "недоступно"
     if ffmpeg_line != "недоступно":
         parts = ffmpeg_line.split(" ")
         ffmpeg_version = parts[2] if len(parts) >= 3 else "недоступно"

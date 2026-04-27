@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
 from app.utils.user_agent import parse_user_agent
 from app.utils.system_info import get_tool_versions
 
@@ -38,4 +37,4 @@ def test_get_tool_versions_caches(monkeypatch):
     v1 = get_tool_versions()
     v2 = get_tool_versions()
     assert v1 == v2
-    assert calls["n"] == 3  # python + ffmpeg + yt-dlp called once
+    assert calls["n"] == 2  # ffmpeg + yt-dlp called once (python uses sys.version)
