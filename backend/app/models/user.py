@@ -40,3 +40,7 @@ class User(Base):
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    avatar_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    kicked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
