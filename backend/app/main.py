@@ -14,7 +14,7 @@ from app.core.security import hash_password, generate_random_password
 from app.middleware.audit import RequestLoggerMiddleware
 from app.middleware.security import RateLimitMiddleware
 from app.models.user import User
-from app.routers import auth, admin, youtube, convert, image
+from app.routers import auth, admin, youtube, convert, image, users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -226,6 +226,7 @@ async def _warmup_image_models() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    os.makedirs(settings.AVATARS_DIR, exist_ok=True)
     await create_tables()
     await _create_superadmin()
     scheduler = _setup_scheduler()
@@ -257,6 +258,7 @@ app.include_router(admin.router)
 app.include_router(youtube.router)
 app.include_router(convert.router)
 app.include_router(image.router)
+app.include_router(users.router)
 
 
 @app.get("/api/health")

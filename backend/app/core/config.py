@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/naturalsk.db"
     UPLOAD_DIR: str = "./uploads"
+    AVATARS_DIR: str = "./data/avatars"
     FILE_TTL_HOURS: int = 6
     MAX_LOGIN_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_MINUTES: int = 15
