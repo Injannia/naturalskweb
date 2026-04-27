@@ -10,7 +10,6 @@ from app.core.database import get_db
 from app.core.security import decode_token
 from app.core import token_blacklist
 from app.models.user import User
-from app.models.audit import ActiveSession  # noqa: F401  (re-exported for callers)
 
 security_scheme = HTTPBearer()
 
@@ -45,8 +44,12 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден или отключён")
 
     if user.kicked_at:
-        iat = payload.get("iat")
-        if iat and datetime.fromtimestamp(iat, tz=timezone.utc) < user.kicked_at:
+        iat = payload.get("iat", 0)
+        kicked_at = user.kicked_at
+        if kicked_at.tzinfo is None:
+            kicked_at = kicked_at.replace(tzinfo=timezone.utc)
+        token_iat = datetime.fromtimestamp(iat, tz=timezone.utc)
+        if token_iat < kicked_at:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
     return user

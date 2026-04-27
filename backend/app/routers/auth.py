@@ -117,8 +117,18 @@ async def refresh(body: RefreshRequest, request: Request, db: AsyncSession = Dep
     user_id = int(payload["sub"])
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.is_deleted:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден или отключён")
+
+    if user.kicked_at:
+        iat = payload.get("iat", 0)
+        kicked_at = user.kicked_at
+        if kicked_at.tzinfo is None:
+            kicked_at = kicked_at.replace(tzinfo=timezone.utc)
+        token_iat = datetime.fromtimestamp(iat, tz=timezone.utc)
+        if token_iat < kicked_at:
+            await db.delete(session)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
     await db.delete(session)
 

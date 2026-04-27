@@ -5,20 +5,20 @@ The repo's test infrastructure (see tests/conftest.py) only exposes a
 TestClient/httpx setup, so these tests call the auth router and
 dependency functions directly.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-from sqlalchemy import select
 from starlette.requests import Request
 
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password
 from app.dependencies import get_current_user, require_admin, require_superadmin
+from app.models.audit import ActiveSession
 from app.models.user import User
-from app.routers.auth import login as auth_login
-from app.schemas.auth import LoginRequest
+from app.routers.auth import login as auth_login, refresh as auth_refresh
+from app.schemas.auth import LoginRequest, RefreshRequest
 
 
 def _make_request() -> Request:
@@ -100,7 +100,6 @@ async def test_kicked_at_invalidates_old_tokens(db_session):
     token = create_access_token({"sub": str(user.id), "role": user.role})
 
     # Kick happens 5 s after the token was issued — old token must be rejected.
-    from datetime import timedelta
     user.kicked_at = datetime.now(timezone.utc) + timedelta(seconds=5)
     await db_session.commit()
 
@@ -114,8 +113,6 @@ async def test_kicked_at_invalidates_old_tokens(db_session):
 @pytest.mark.asyncio
 async def test_kicked_at_allows_fresh_tokens(db_session):
     """A token issued AFTER kicked_at must still pass."""
-    from datetime import timedelta
-
     user = await _make_user(db_session, username="kicked2", password="Password1")
 
     # Kick happened in the past.
@@ -158,3 +155,42 @@ async def test_require_admin_blocks_plain_user():
     with pytest.raises(HTTPException) as exc_info:
         await require_admin(fake)
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_kicked_at_works_with_naive_datetime_from_db(db_session):
+    """Regression: SQLite returns naive datetimes; comparison must still work."""
+    user = await _make_user(db_session, username="kicked_naive", password="Password1")
+    token = create_access_token({"sub": str(user.id), "role": user.role})
+    user.kicked_at = datetime.now(timezone.utc) + timedelta(seconds=5)
+    await db_session.commit()
+    db_session.expunge_all()  # force fresh SELECT, returns naive datetime
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(_bearer(token), db_session)
+    assert exc_info.value.status_code == 401
+    assert "Сессия завершена администратором" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_refresh_blocks_deleted_user(db_session):
+    """Regression: /auth/refresh must enforce is_deleted (not just is_active)."""
+    user = await _make_user(db_session, username="del_refresh", password="Password1")
+    refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
+    payload = decode_token(refresh_token)
+    sess = ActiveSession(
+        user_id=user.id,
+        token_jti=payload["jti"],
+        ip_address="",
+        user_agent="",
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+    )
+    db_session.add(sess)
+    user.is_deleted = True
+    await db_session.commit()
+
+    request = _make_request()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_refresh(RefreshRequest(refresh_token=refresh_token), request, db_session)
+    assert exc_info.value.status_code == 401
