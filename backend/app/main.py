@@ -14,7 +14,7 @@ from app.core.security import hash_password, generate_random_password
 from app.middleware.audit import RequestLoggerMiddleware
 from app.middleware.security import RateLimitMiddleware
 from app.models.user import User
-from app.routers import auth, admin, youtube, convert, image, users
+from app.routers import auth, admin, youtube, convert, image, users, me
 
 logging.basicConfig(
     level=logging.INFO,
@@ -259,6 +259,7 @@ app.include_router(youtube.router)
 app.include_router(convert.router)
 app.include_router(image.router)
 app.include_router(users.router)
+app.include_router(me.router)
 
 
 @app.get("/api/health")
