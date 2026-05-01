@@ -33,7 +33,3 @@ class MySessionItem(BaseModel):
     is_current: bool
 
     model_config = {"from_attributes": True}
-
-
-class MessageResponse(BaseModel):
-    message: str

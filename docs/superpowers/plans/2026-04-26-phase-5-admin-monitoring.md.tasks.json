@@ -4,41 +4,41 @@
     {
       "id": 10,
       "subject": "Task 0: Изменения модели User и пересоздание БД",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Расширить User четырьмя полями (avatar_path, avatar_version, is_deleted, kicked_at) и пересоздать БД.\n\n```json:metadata\n{\"files\":[\"backend/app/models/user.py\"],\"verifyCommand\":\"sqlite3 backend/data/naturalsk.db 'PRAGMA table_info(users);' | grep -E 'avatar_path|avatar_version|is_deleted|kicked_at'\",\"acceptanceCriteria\":[\"Поля добавлены\",\"БД пересоздана\",\"superadmin создан\"]}\n```"
     },
     {
       "id": 11,
       "subject": "Task 1: Утилиты — audit logging, system_info, user_agent",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [10],
       "description": "**Goal:** utils/audit.py, utils/audit_actions.py, utils/user_agent.py, utils/system_info.py + перенести _log_audit из auth.py.\n\n```json:metadata\n{\"files\":[\"backend/app/utils/audit.py\",\"backend/app/utils/audit_actions.py\",\"backend/app/utils/user_agent.py\",\"backend/app/utils/system_info.py\",\"backend/app/routers/auth.py\",\"backend/tests/test_utils.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_utils.py tests/test_auth.py -v\",\"acceptanceCriteria\":[\"log_audit\",\"actions константы\",\"parse_user_agent\",\"get_tool_versions с кэшем\"]}\n```"
     },
     {
       "id": 12,
       "subject": "Task 2: Auth-зависимости — kicked_at, is_deleted, require_superadmin",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [11],
       "description": "**Goal:** В get_current_user проверять is_deleted и kicked_at; auth.login прячет факт удаления; добавить require_superadmin.\n\n```json:metadata\n{\"files\":[\"backend/app/dependencies.py\",\"backend/app/routers/auth.py\",\"backend/tests/test_auth_extras.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_auth_extras.py -v\",\"acceptanceCriteria\":[\"is_deleted=401\",\"login deleted = invalid credentials\",\"kicked_at инвалидирует токен\",\"require_superadmin\"]}\n```"
     },
     {
       "id": 13,
       "subject": "Task 3: Раздача аватаров — routers/users.py",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [12],
       "description": "**Goal:** GET /api/users/{id}/avatar для залогиненных. Добавить AVATARS_DIR в config.\n\n```json:metadata\n{\"files\":[\"backend/app/core/config.py\",\"backend/app/main.py\",\"backend/app/routers/users.py\",\"backend/tests/test_avatar_serve.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_avatar_serve.py -v\",\"acceptanceCriteria\":[\"AVATARS_DIR создаётся\",\"404 без файла\",\"401 без токена\",\"200 с файлом image/webp\"]}\n```"
     },
     {
       "id": 14,
       "subject": "Task 4: Schemas + базовые /api/me эндпоинты",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [13],
       "description": "**Goal:** schemas/me.py + routers/me.py (GET/PATCH /me, /me/sessions CRUD).\n\n```json:metadata\n{\"files\":[\"backend/app/schemas/me.py\",\"backend/app/routers/me.py\",\"backend/app/main.py\",\"backend/tests/test_me.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_me.py -v\",\"acceptanceCriteria\":[\"GET /me расширенный\",\"PATCH /me\",\"conflict 409\",\"sessions с is_current\",\"DELETE all кроме текущей\"]}\n```"
     },
     {
       "id": 15,
       "subject": "Task 5: Avatar upload/delete (/api/me/avatar)",
-      "status": "pending",
+      "status": "in_progress",
       "blockedBy": [14],
       "description": "**Goal:** POST/DELETE /api/me/avatar через Pillow → WebP 256×256, инкремент avatar_version, audit-лог.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/me.py\",\"backend/tests/test_avatar_upload.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_avatar_upload.py -v\",\"acceptanceCriteria\":[\"WebP 256x256\",\"413 при >5MB\",\"400 при не-картинке\",\"DELETE удаляет файл\",\"audit logged\"]}\n```"
     },
