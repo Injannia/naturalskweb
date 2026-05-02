@@ -24,6 +24,13 @@ from app.utils.audit import log_audit
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+def _is_visible(actor: User, target: User) -> bool:
+    """Soft-deleted users are visible only to superadmin."""
+    if not target.is_deleted:
+        return True
+    return actor.role == "superadmin"
+
+
 def _can_admin_modify(actor: User, target: User) -> bool:
     """Return True iff `actor` is allowed to PATCH/operate on `target`.
 
@@ -48,9 +55,9 @@ def _diff_changes(target: User, body: UpdateUserRequest) -> dict:
     if body.role is not None and body.role != target.role:
         changes["role"] = [target.role, body.role]
     if body.permissions is not None and body.permissions != target.permissions:
-        changes["permissions"] = [target.permissions, body.permissions]
+        changes["permissions"] = [dict(target.permissions), dict(body.permissions)]
     if body.limits is not None and body.limits != target.limits:
-        changes["limits"] = [target.limits, body.limits]
+        changes["limits"] = [dict(target.limits), dict(body.limits)]
     if body.is_active is not None and body.is_active != target.is_active:
         changes["is_active"] = [target.is_active, body.is_active]
     return changes
@@ -67,15 +74,12 @@ async def list_users(
     actor: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    if include_deleted and actor.role != "superadmin":
+    show_deleted = include_deleted or status_filter == "deleted"
+    if show_deleted and actor.role != "superadmin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только superadmin")
 
     stmt = select(User)
     count_stmt = select(func.count(User.id))
-
-    if not include_deleted:
-        stmt = stmt.where(User.is_deleted == False)  # noqa: E712
-        count_stmt = count_stmt.where(User.is_deleted == False)  # noqa: E712
 
     if search:
         like = f"%{search}%"
@@ -87,16 +91,17 @@ async def list_users(
         count_stmt = count_stmt.where(User.role == role)
 
     if status_filter == "active":
-        stmt = stmt.where(User.is_active == True, User.is_deleted == False)  # noqa: E712
-        count_stmt = count_stmt.where(User.is_active == True, User.is_deleted == False)  # noqa: E712
+        stmt = stmt.where(User.is_active.is_(True), User.is_deleted.is_(False))
+        count_stmt = count_stmt.where(User.is_active.is_(True), User.is_deleted.is_(False))
     elif status_filter == "inactive":
-        stmt = stmt.where(User.is_active == False, User.is_deleted == False)  # noqa: E712
-        count_stmt = count_stmt.where(User.is_active == False, User.is_deleted == False)  # noqa: E712
+        stmt = stmt.where(User.is_active.is_(False), User.is_deleted.is_(False))
+        count_stmt = count_stmt.where(User.is_active.is_(False), User.is_deleted.is_(False))
     elif status_filter == "deleted":
-        if actor.role != "superadmin":
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только superadmin")
-        stmt = stmt.where(User.is_deleted == True)  # noqa: E712
-        count_stmt = count_stmt.where(User.is_deleted == True)  # noqa: E712
+        stmt = stmt.where(User.is_deleted.is_(True))
+        count_stmt = count_stmt.where(User.is_deleted.is_(True))
+    elif not include_deleted:
+        stmt = stmt.where(User.is_deleted.is_(False))
+        count_stmt = count_stmt.where(User.is_deleted.is_(False))
 
     stmt = stmt.order_by(User.id).offset(offset).limit(limit)
     items = (await db.execute(stmt)).scalars().all()
@@ -115,7 +120,7 @@ async def get_user(
     db: AsyncSession = Depends(get_db),
 ):
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not user:
+    if not user or not _is_visible(actor, user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
     return user
 
@@ -188,7 +193,7 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
 ):
     target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not target:
+    if not target or not _is_visible(actor, target):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
     if not _can_admin_modify(actor, target):
@@ -242,6 +247,11 @@ async def delete_user(
     target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    if target.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь уже удалён",
+        )
 
     target.is_deleted = True
     target.kicked_at = datetime.now(timezone.utc)

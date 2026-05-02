@@ -520,3 +520,111 @@ async def test_delete_user_not_found(db_session):
             user_id=9999, request=_make_request(), actor=sa, db=db_session
         )
     assert exc.value.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Soft-deleted user visibility (regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_get_user_404_on_soft_deleted(db_session):
+    """Admin must not see a soft-deleted user via GET /users/{id}."""
+    admin = await _make_user(db_session, username="adm", role="admin")
+    target = await _make_user(db_session, username="ghost", is_deleted=True)
+
+    with pytest.raises(HTTPException) as exc:
+        await get_user(user_id=target.id, actor=admin, db=db_session)
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_superadmin_get_user_sees_soft_deleted(db_session):
+    sa = await _make_user(db_session, username="root", role="superadmin")
+    target = await _make_user(db_session, username="ghost", is_deleted=True)
+
+    result = await get_user(user_id=target.id, actor=sa, db=db_session)
+    assert result.id == target.id
+    assert result.is_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_patch_soft_deleted_user(db_session):
+    admin = await _make_user(db_session, username="adm", role="admin")
+    target = await _make_user(db_session, username="ghost", is_deleted=True)
+
+    with pytest.raises(HTTPException) as exc:
+        await update_user(
+            user_id=target.id,
+            body=UpdateUserRequest(is_active=False),
+            request=_make_request(),
+            actor=admin,
+            db=db_session,
+        )
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_already_deleted_user_returns_409(db_session):
+    """Re-deleting a soft-deleted user must not silently emit another audit row."""
+    sa = await _make_user(db_session, username="root", role="superadmin")
+    target = await _make_user(db_session, username="ghost", is_deleted=True)
+
+    with pytest.raises(HTTPException) as exc:
+        await delete_user(
+            user_id=target.id, request=_make_request(), actor=sa, db=db_session
+        )
+    assert exc.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_status_deleted_with_default_include_returns_deleted(db_session):
+    """status=deleted (without include_deleted) must list deleted users for superadmin,
+    not produce a contradictory empty result."""
+    sa = await _make_user(db_session, username="root", role="superadmin")
+    await _make_user(db_session, username="alive")
+    deleted = await _make_user(db_session, username="ghost", is_deleted=True)
+
+    result = await list_users(
+        offset=0,
+        limit=10,
+        search=None,
+        role=None,
+        status_filter="deleted",
+        include_deleted=False,
+        actor=sa,
+        db=db_session,
+    )
+    ids = [u.id for u in result.items]
+    assert deleted.id in ids
+    assert result.total >= 1
+
+
+@pytest.mark.asyncio
+async def test_update_user_audit_log_records_old_value(db_session):
+    """Audit log must capture the *pre-mutation* permissions/limits — not aliased to the new dict."""
+    admin = await _make_user(db_session, username="adm", role="admin")
+    target = await _make_user(db_session, username="bob")
+
+    old_perms = dict(target.permissions)
+    new_perms = {"youtube": False, "converter": True, "image": True}
+
+    await update_user(
+        user_id=target.id,
+        body=UpdateUserRequest(permissions=new_perms),
+        request=_make_request(),
+        actor=admin,
+        db=db_session,
+    )
+
+    log = (
+        await db_session.execute(
+            select(AuditLog)
+            .where(AuditLog.action == audit_actions.USER_UPDATED)
+            .order_by(AuditLog.id.desc())
+        )
+    ).scalars().first()
+    assert log is not None
+    before, after = log.details["changes"]["permissions"]
+    assert before == old_perms
+    assert after == new_perms
