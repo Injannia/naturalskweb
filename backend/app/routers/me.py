@@ -1,13 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import io
+import os
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.dependencies import get_current_user
 from app.models.audit import ActiveSession
 from app.models.user import User
 from app.schemas.auth import MessageResponse
 from app.schemas.me import (
+    AvatarUploadResponse,
     MySessionItem,
     UpdateMeRequest,
     UserMeResponse,
@@ -16,6 +22,9 @@ from app.utils import audit_actions
 from app.utils.audit import log_audit
 
 router = APIRouter(prefix="/api/me", tags=["me"])
+
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
+ALLOWED_AVATAR_MIME = {"image/jpeg", "image/png", "image/webp"}
 
 
 @router.get("", response_model=UserMeResponse)
@@ -125,3 +134,84 @@ async def delete_all_my_sessions_except_current(
         await db.delete(session)
     await db.commit()
     return MessageResponse(message="Остальные сессии завершены")
+
+
+@router.post("/avatar", response_model=AvatarUploadResponse)
+async def upload_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a new avatar image, normalize to WebP 256×256, persist to disk."""
+    if file.content_type not in ALLOWED_AVATAR_MIME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Допустимы только изображения JPEG, PNG или WEBP",
+        )
+
+    contents = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(contents) > MAX_AVATAR_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Файл больше 5 МБ",
+        )
+
+    # Verify the bytes are a real image.
+    try:
+        with Image.open(io.BytesIO(contents)) as probe:
+            probe.verify()
+    except (UnidentifiedImageError, Exception):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Невалидное изображение",
+        )
+
+    # Re-open (verify() leaves the image unusable) and downscale.
+    try:
+        img = Image.open(io.BytesIO(contents)).convert("RGB")
+        img.thumbnail((256, 256))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Невалидное изображение",
+        )
+
+    os.makedirs(settings.AVATARS_DIR, exist_ok=True)
+    abs_path = os.path.join(settings.AVATARS_DIR, f"{user.id}.webp")
+    img.save(abs_path, format="WEBP", quality=88)
+
+    user.avatar_path = f"avatars/{user.id}.webp"
+    user.avatar_version = (user.avatar_version or 0) + 1
+
+    await log_audit(db, user.id, audit_actions.AVATAR_UPDATED, request, {})
+    await db.commit()
+    await db.refresh(user)
+
+    return AvatarUploadResponse(
+        avatar_path=user.avatar_path, avatar_version=user.avatar_version
+    )
+
+
+@router.delete("/avatar", response_model=MessageResponse)
+async def delete_avatar(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete the user's avatar file (if present), reset DB fields."""
+    abs_path = os.path.join(settings.AVATARS_DIR, f"{user.id}.webp")
+    if os.path.exists(abs_path):
+        try:
+            os.remove(abs_path)
+        except OSError:
+            pass
+
+    user.avatar_path = None
+    user.avatar_version = (user.avatar_version or 0) + 1
+
+    await log_audit(db, user.id, audit_actions.AVATAR_REMOVED, request, {})
+    await db.commit()
+    await db.refresh(user)
+
+    return MessageResponse(message="Аватар удалён")

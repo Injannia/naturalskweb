@@ -33,3 +33,8 @@ class MySessionItem(BaseModel):
     is_current: bool
 
     model_config = {"from_attributes": True}
+
+
+class AvatarUploadResponse(BaseModel):
+    avatar_path: str
+    avatar_version: int
