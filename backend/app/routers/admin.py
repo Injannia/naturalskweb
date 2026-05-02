@@ -1,55 +1,146 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import hash_password, generate_random_password
-from app.dependencies import require_admin
+from app.core.security import generate_random_password, hash_password
+from app.dependencies import get_current_user, require_admin, require_superadmin
+from app.models.audit import ActiveSession
 from app.models.user import User
-from app.models.audit import AuditLog
+from app.schemas.admin import (
+    CreateUserRequest,
+    CreateUserResponse,
+    UpdateUserRequest,
+    UserDetailResponse,
+    UserListItemAdmin,
+    UserListResponse,
+)
+from app.schemas.auth import MessageResponse
+from app.utils import audit_actions
+from app.utils.audit import log_audit
 
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(require_admin)])
-
-
-class CreateUserRequest(BaseModel):
-    username: str = Field(..., min_length=2, max_length=50)
-    role: str = Field(default="user", pattern=r"^(user|admin)$")
-    permissions: dict | None = None
-    limits: dict | None = None
-
-
-class CreateUserResponse(BaseModel):
-    id: int
-    username: str
-    password: str
-    role: str
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-class UserListItem(BaseModel):
-    id: int
-    username: str
-    role: str
-    is_active: bool
-    last_login: datetime | None
-    usage_today: dict
+def _can_admin_modify(actor: User, target: User) -> bool:
+    """Return True iff `actor` is allowed to PATCH/operate on `target`.
 
-    model_config = {"from_attributes": True}
+    Rules:
+      - superadmin: can modify anyone (including themselves elsewhere is checked separately).
+      - admin: cannot modify superadmin, cannot modify themselves.
+      - any other role: cannot modify anyone.
+    """
+    if actor.role == "superadmin":
+        return True
+    if actor.role != "admin":
+        return False
+    if target.role == "superadmin":
+        return False
+    if target.id == actor.id:
+        return False
+    return True
 
 
-@router.get("/users", response_model=list[UserListItem])
-async def list_users(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).order_by(User.id))
-    return result.scalars().all()
+def _diff_changes(target: User, body: UpdateUserRequest) -> dict:
+    changes: dict = {}
+    if body.role is not None and body.role != target.role:
+        changes["role"] = [target.role, body.role]
+    if body.permissions is not None and body.permissions != target.permissions:
+        changes["permissions"] = [target.permissions, body.permissions]
+    if body.limits is not None and body.limits != target.limits:
+        changes["limits"] = [target.limits, body.limits]
+    if body.is_active is not None and body.is_active != target.is_active:
+        changes["is_active"] = [target.is_active, body.is_active]
+    return changes
+
+
+@router.get("/users", response_model=UserListResponse)
+async def list_users(
+    offset: int = 0,
+    limit: int = Query(default=20, ge=1, le=100),
+    search: str | None = None,
+    role: str | None = None,
+    status_filter: str | None = Query(default=None, alias="status"),
+    include_deleted: bool = False,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if include_deleted and actor.role != "superadmin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только superadmin")
+
+    stmt = select(User)
+    count_stmt = select(func.count(User.id))
+
+    if not include_deleted:
+        stmt = stmt.where(User.is_deleted == False)  # noqa: E712
+        count_stmt = count_stmt.where(User.is_deleted == False)  # noqa: E712
+
+    if search:
+        like = f"%{search}%"
+        stmt = stmt.where(User.username.ilike(like))
+        count_stmt = count_stmt.where(User.username.ilike(like))
+
+    if role:
+        stmt = stmt.where(User.role == role)
+        count_stmt = count_stmt.where(User.role == role)
+
+    if status_filter == "active":
+        stmt = stmt.where(User.is_active == True, User.is_deleted == False)  # noqa: E712
+        count_stmt = count_stmt.where(User.is_active == True, User.is_deleted == False)  # noqa: E712
+    elif status_filter == "inactive":
+        stmt = stmt.where(User.is_active == False, User.is_deleted == False)  # noqa: E712
+        count_stmt = count_stmt.where(User.is_active == False, User.is_deleted == False)  # noqa: E712
+    elif status_filter == "deleted":
+        if actor.role != "superadmin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только superadmin")
+        stmt = stmt.where(User.is_deleted == True)  # noqa: E712
+        count_stmt = count_stmt.where(User.is_deleted == True)  # noqa: E712
+
+    stmt = stmt.order_by(User.id).offset(offset).limit(limit)
+    items = (await db.execute(stmt)).scalars().all()
+    total = (await db.execute(count_stmt)).scalar() or 0
+
+    return UserListResponse(
+        items=[UserListItemAdmin.model_validate(u) for u in items],
+        total=total,
+    )
+
+
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user(
+    user_id: int,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    return user
 
 
 @router.post("/users", response_model=CreateUserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(body: CreateUserRequest, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(User).where(User.username == body.username))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Пользователь с таким именем уже существует")
+async def create_user(
+    body: CreateUserRequest,
+    request: Request,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if actor.role == "admin" and body.role != "user":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin может создавать только пользователей с ролью user",
+        )
+
+    existing = (
+        await db.execute(select(User).where(User.username == body.username))
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь с таким именем уже существует",
+        )
 
     password = generate_random_password()
     user = User(
@@ -63,48 +154,111 @@ async def create_user(body: CreateUserRequest, db: AsyncSession = Depends(get_db
     db.add(user)
     await db.flush()
 
-    return CreateUserResponse(id=user.id, username=user.username, password=password, role=user.role)
-
-
-@router.patch("/users/{user_id}/toggle")
-async def toggle_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    if user.role == "superadmin":
-        raise HTTPException(status_code=403, detail="Нельзя отключить суперадмина")
-    user.is_active = not user.is_active
-    return {"id": user.id, "is_active": user.is_active}
-
-
-@router.get("/audit-logs")
-async def get_audit_logs(limit: int = 50, offset: int = 0, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(AuditLog).order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
-    )
-    logs = result.scalars().all()
-    return [
+    await log_audit(
+        db,
+        actor.id,
+        audit_actions.USER_CREATED,
+        request,
         {
-            "id": l.id,
-            "user_id": l.user_id,
-            "action": l.action,
-            "details": l.details,
-            "ip_address": l.ip_address,
-            "created_at": l.created_at.isoformat() if l.created_at else None,
-        }
-        for l in logs
-    ]
+            "target_user_id": user.id,
+            "target_username": user.username,
+            "role": user.role,
+            "permissions": user.permissions,
+            "limits": user.limits,
+        },
+    )
+
+    await db.commit()
+    await db.refresh(user)
+
+    return CreateUserResponse(
+        id=user.id,
+        username=user.username,
+        password=password,
+        role=user.role,
+    )
 
 
-@router.get("/stats")
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    total_users = await db.execute(select(func.count(User.id)))
-    active_users = await db.execute(select(func.count(User.id)).where(User.is_active == True))
-    total_logs = await db.execute(select(func.count(AuditLog.id)))
+@router.patch("/users/{user_id}", response_model=UserDetailResponse)
+async def update_user(
+    user_id: int,
+    body: UpdateUserRequest,
+    request: Request,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    return {
-        "total_users": total_users.scalar(),
-        "active_users": active_users.scalar(),
-        "total_audit_logs": total_logs.scalar(),
-    }
+    if not _can_admin_modify(actor, target):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+
+    if actor.role == "admin" and body.role is not None and body.role != "user":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin может назначать только роль user",
+        )
+
+    changes = _diff_changes(target, body)
+
+    if body.role is not None:
+        target.role = body.role
+    if body.permissions is not None:
+        target.permissions = body.permissions
+    if body.limits is not None:
+        target.limits = body.limits
+    if body.is_active is not None:
+        target.is_active = body.is_active
+
+    if changes:
+        await log_audit(
+            db,
+            actor.id,
+            audit_actions.USER_UPDATED,
+            request,
+            {
+                "target_user_id": target.id,
+                "target_username": target.username,
+                "changes": changes,
+            },
+        )
+
+    await db.commit()
+    await db.refresh(target)
+    return target
+
+
+@router.delete("/users/{user_id}", response_model=MessageResponse)
+async def delete_user(
+    user_id: int,
+    request: Request,
+    actor: User = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id == actor.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нельзя удалить себя")
+
+    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    target.is_deleted = True
+    target.kicked_at = datetime.now(timezone.utc)
+
+    sessions = (
+        await db.execute(select(ActiveSession).where(ActiveSession.user_id == target.id))
+    ).scalars().all()
+    for s in sessions:
+        await db.delete(s)
+
+    await log_audit(
+        db,
+        actor.id,
+        audit_actions.USER_DELETED,
+        request,
+        {"target_user_id": target.id, "target_username": target.username},
+    )
+
+    await db.commit()
+    return MessageResponse(message="Пользователь удалён")
