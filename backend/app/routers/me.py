@@ -161,17 +161,27 @@ async def upload_avatar(
     try:
         with Image.open(io.BytesIO(contents)) as probe:
             probe.verify()
-    except (UnidentifiedImageError, Exception):
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Невалидное изображение",
         )
 
-    # Re-open (verify() leaves the image unusable) and downscale.
+    # Re-open (verify() leaves the image unusable) and composite alpha onto
+    # white before downscale, so transparent PNGs don't render as black.
     try:
-        img = Image.open(io.BytesIO(contents)).convert("RGB")
+        opened = Image.open(io.BytesIO(contents))
+        if opened.mode in ("RGBA", "LA") or (
+            opened.mode == "P" and "transparency" in opened.info
+        ):
+            rgba = opened.convert("RGBA")
+            background = Image.new("RGB", rgba.size, (255, 255, 255))
+            background.paste(rgba, mask=rgba.split()[-1])
+            img = background
+        else:
+            img = opened.convert("RGB")
         img.thumbnail((256, 256))
-    except Exception:
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Невалидное изображение",

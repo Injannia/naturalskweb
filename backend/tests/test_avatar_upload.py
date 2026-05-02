@@ -172,6 +172,34 @@ async def test_upload_avatar_webp_success(db_session):
         _cleanup(user.id)
 
 
+def _transparent_png_bytes() -> bytes:
+    """Fully transparent RGBA PNG with default (0, 0, 0, 0) pixels."""
+    img = Image.new("RGBA", (50, 50), (0, 0, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_upload_avatar_transparent_png_renders_on_white(db_session):
+    """A transparent PNG must be composited onto white, not flattened to black."""
+    user = await _make_user(db_session, username="transparent_png")
+    request = _make_request()
+    upload = _make_upload(
+        _transparent_png_bytes(), filename="t.png", content_type="image/png"
+    )
+
+    try:
+        await upload_avatar(file=upload, request=request, user=user, db=db_session)
+
+        path = _avatar_path_for(user.id)
+        with Image.open(path) as img:
+            sample = img.convert("RGB").getpixel((0, 0))
+        assert sample == (255, 255, 255), f"expected white background, got {sample}"
+    finally:
+        _cleanup(user.id)
+
+
 @pytest.mark.asyncio
 async def test_upload_avatar_increments_version(db_session):
     user = await _make_user(db_session, username="version_bump", avatar_version=4)
