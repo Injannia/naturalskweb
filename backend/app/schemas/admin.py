@@ -57,3 +57,13 @@ class ResetPasswordResponse(BaseModel):
 class ToggleActiveResponse(BaseModel):
     id: int
     is_active: bool
+
+
+class AdminSessionItem(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    ip_address: str
+    user_agent: str
+    created_at: datetime
+    expires_at: datetime
