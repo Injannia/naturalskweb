@@ -38,35 +38,35 @@
     {
       "id": 15,
       "subject": "Task 5: Avatar upload/delete (/api/me/avatar)",
-      "status": "in_progress",
+      "status": "completed",
       "blockedBy": [14],
       "description": "**Goal:** POST/DELETE /api/me/avatar через Pillow → WebP 256×256, инкремент avatar_version, audit-лог.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/me.py\",\"backend/tests/test_avatar_upload.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_avatar_upload.py -v\",\"acceptanceCriteria\":[\"WebP 256x256\",\"413 при >5MB\",\"400 при не-картинке\",\"DELETE удаляет файл\",\"audit logged\"]}\n```"
     },
     {
       "id": 16,
       "subject": "Task 6: Admin — schemas + расширенные user-эндпоинты",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [15],
       "description": "**Goal:** schemas/admin.py + переписать routers/admin.py (list с пагинацией/фильтрами, get_user, PATCH с ролевыми правилами, soft DELETE).\n\n```json:metadata\n{\"files\":[\"backend/app/schemas/admin.py\",\"backend/app/routers/admin.py\",\"backend/tests/test_admin_users.py\",\"backend/tests/conftest.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_users.py -v\",\"acceptanceCriteria\":[\"list paginated\",\"admin создаёт только user\",\"admin не правит superadmin\",\"admin не правит себя\",\"admin не назначает admin\",\"superadmin не удаляет себя\",\"include_deleted только superadmin\"]}\n```"
     },
     {
       "id": 17,
       "subject": "Task 7: Admin — reset-password и toggle-active",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [16],
       "description": "**Goal:** POST /admin/users/{id}/reset-password (одноразовый пароль + kicked_at), POST /admin/users/{id}/toggle-active.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/tests/test_admin_user_actions.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_user_actions.py -v\",\"acceptanceCriteria\":[\"reset возвращает пароль\",\"admin не reset superadmin\",\"toggle переключает\",\"superadmin не toggle себя\"]}\n```"
     },
     {
       "id": 18,
       "subject": "Task 8: Admin — сессии (/admin/sessions, kill)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [17],
       "description": "**Goal:** GET /admin/sessions (все), DELETE /admin/sessions/{id} с kicked_at инвалидацией.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_admin_sessions.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_sessions.py -v\",\"acceptanceCriteria\":[\"list всех\",\"kill устанавливает kicked_at\",\"старый токен 401 после kill\"]}\n```"
     },
     {
       "id": 19,
       "subject": "Task 9: Admin — расширенная статистика /api/admin/stats",
-      "status": "pending",
+      "status": "in_progress",
       "blockedBy": [18],
       "description": "**Goal:** Заменить минимальный stats на полный (downloads/conversions/image_ops, storage, top_users, active_sessions, deleted_users).\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_admin_stats.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_stats.py -v\",\"acceptanceCriteria\":[\"все поля spec §6.5\",\"агрегация usage_today\",\"top 5\",\"storage_used_mb\"]}\n```"
     },
