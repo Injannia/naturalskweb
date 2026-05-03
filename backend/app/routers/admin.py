@@ -12,6 +12,8 @@ from app.models.user import User
 from app.schemas.admin import (
     CreateUserRequest,
     CreateUserResponse,
+    ResetPasswordResponse,
+    ToggleActiveResponse,
     UpdateUserRequest,
     UserDetailResponse,
     UserListItemAdmin,
@@ -272,3 +274,97 @@ async def delete_user(
 
     await db.commit()
     return MessageResponse(message="Пользователь удалён")
+
+
+@router.post("/users/{user_id}/reset-password", response_model=ResetPasswordResponse)
+async def reset_password(
+    user_id: int,
+    request: Request,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not target or not _is_visible(actor, target):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    if actor.role == "admin":
+        if target.role == "superadmin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin не может сбрасывать пароль superadmin",
+            )
+        if target.id == actor.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin не может сбрасывать пароль самому себе через эту админку",
+            )
+
+    new_password = generate_random_password()
+    target.password_hash = hash_password(new_password)
+    target.must_change_password = True
+    target.kicked_at = datetime.now(timezone.utc)
+
+    sessions = (
+        await db.execute(select(ActiveSession).where(ActiveSession.user_id == target.id))
+    ).scalars().all()
+    for s in sessions:
+        await db.delete(s)
+
+    await log_audit(
+        db,
+        actor.id,
+        audit_actions.USER_PASSWORD_RESET,
+        request,
+        {"target_user_id": target.id, "target_username": target.username},
+    )
+
+    await db.commit()
+
+    return ResetPasswordResponse(
+        user_id=target.id,
+        username=target.username,
+        password=new_password,
+    )
+
+
+@router.post("/users/{user_id}/toggle-active", response_model=ToggleActiveResponse)
+async def toggle_active(
+    user_id: int,
+    request: Request,
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not target or not _is_visible(actor, target):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    if target.id == actor.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Нельзя деактивировать самого себя",
+        )
+
+    if actor.role == "admin" and target.role == "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin не может менять активность superadmin",
+        )
+
+    target.is_active = not target.is_active
+
+    await log_audit(
+        db,
+        actor.id,
+        audit_actions.USER_TOGGLED_ACTIVE,
+        request,
+        {
+            "target_user_id": target.id,
+            "target_username": target.username,
+            "new_state": target.is_active,
+        },
+    )
+
+    await db.commit()
+    await db.refresh(target)
+
+    return ToggleActiveResponse(id=target.id, is_active=target.is_active)

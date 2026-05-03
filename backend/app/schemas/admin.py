@@ -46,3 +46,14 @@ class UpdateUserRequest(BaseModel):
     permissions: dict | None = None
     limits: dict | None = None
     is_active: bool | None = None
+
+
+class ResetPasswordResponse(BaseModel):
+    user_id: int
+    username: str
+    password: str
+
+
+class ToggleActiveResponse(BaseModel):
+    id: int
+    is_active: bool
