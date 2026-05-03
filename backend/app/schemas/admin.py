@@ -49,7 +49,7 @@ class UpdateUserRequest(BaseModel):
 
 
 class ResetPasswordResponse(BaseModel):
-    user_id: int
+    id: int
     username: str
     password: str
 

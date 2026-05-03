@@ -287,17 +287,8 @@ async def reset_password(
     if not target or not _is_visible(actor, target):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    if actor.role == "admin":
-        if target.role == "superadmin":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin не может сбрасывать пароль superadmin",
-            )
-        if target.id == actor.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin не может сбрасывать пароль самому себе через эту админку",
-            )
+    if not _can_admin_modify(actor, target):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
     new_password = generate_random_password()
     target.password_hash = hash_password(new_password)
@@ -321,7 +312,7 @@ async def reset_password(
     await db.commit()
 
     return ResetPasswordResponse(
-        user_id=target.id,
+        id=target.id,
         username=target.username,
         password=new_password,
     )
@@ -338,6 +329,7 @@ async def toggle_active(
     if not target or not _is_visible(actor, target):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
+    # Self-deactivation is forbidden for everyone, including superadmin (lock-out risk).
     if target.id == actor.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

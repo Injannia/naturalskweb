@@ -84,7 +84,7 @@ async def test_reset_password_returns_password_and_invalidates_sessions(db_sessi
         user_id=target.id, request=_make_request(), actor=sa, db=db_session
     )
 
-    assert result.user_id == target.id
+    assert result.id == target.id
     assert result.username == target.username
     assert isinstance(result.password, str)
     assert len(result.password) >= 12
@@ -113,6 +113,9 @@ async def test_reset_password_returns_password_and_invalidates_sessions(db_sessi
     assert log.user_id == sa.id
     assert log.details["target_user_id"] == target.id
     assert log.details["target_username"] == target.username
+    # The new password must never be persisted in the audit log.
+    assert "password" not in log.details
+    assert result.password not in str(log.details.values())
 
 
 @pytest.mark.asyncio
@@ -146,7 +149,7 @@ async def test_superadmin_can_reset_own_password(db_session):
     result = await reset_password(
         user_id=sa.id, request=_make_request(), actor=sa, db=db_session
     )
-    assert result.user_id == sa.id
+    assert result.id == sa.id
     assert result.password
 
     fresh = (
