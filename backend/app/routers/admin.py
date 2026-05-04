@@ -1,20 +1,24 @@
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import generate_random_password, hash_password
 from app.dependencies import get_current_user, require_admin, require_superadmin
-from app.models.audit import ActiveSession
+from app.models.audit import ActiveSession, AuditLog
 from app.models.user import User
 from app.schemas.admin import (
     AdminSessionItem,
+    AdminStats,
     CreateUserRequest,
     CreateUserResponse,
     ResetPasswordResponse,
     ToggleActiveResponse,
+    TopUser,
     UpdateUserRequest,
     UserDetailResponse,
     UserListItemAdmin,
@@ -23,6 +27,19 @@ from app.schemas.admin import (
 from app.schemas.auth import MessageResponse
 from app.utils import audit_actions
 from app.utils.audit import log_audit
+
+
+def _dir_size_mb(path: str) -> float:
+    if not os.path.isdir(path):
+        return 0.0
+    total = 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return round(total / (1024 * 1024), 2)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -430,3 +447,90 @@ async def kill_session(
 
     await db.commit()
     return MessageResponse(message="Сессия завершена")
+
+
+@router.get("/stats", response_model=AdminStats)
+async def get_stats(
+    actor: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    total_users = (
+        await db.execute(select(func.count(User.id)).where(User.is_deleted.is_(False)))
+    ).scalar() or 0
+    active_users = (
+        await db.execute(
+            select(func.count(User.id)).where(
+                User.is_active.is_(True), User.is_deleted.is_(False)
+            )
+        )
+    ).scalar() or 0
+    deleted_users = (
+        await db.execute(select(func.count(User.id)).where(User.is_deleted.is_(True)))
+    ).scalar() or 0
+
+    users = (
+        await db.execute(select(User).where(User.is_deleted.is_(False)))
+    ).scalars().all()
+
+    def _yt(u: User) -> int:
+        return int(u.usage_today.get("youtube", 0)) if u.usage_today else 0
+
+    def _cv(u: User) -> int:
+        return int(u.usage_today.get("converter", 0)) if u.usage_today else 0
+
+    def _im(u: User) -> int:
+        return int(u.usage_today.get("image", 0)) if u.usage_today else 0
+
+    dl = sum(_yt(u) for u in users)
+    cv = sum(_cv(u) for u in users)
+    im = sum(_im(u) for u in users)
+
+    # Active sessions: filter in Python to avoid naive/aware tz mismatch in SQLite.
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    all_sessions = (
+        await db.execute(select(ActiveSession))
+    ).scalars().all()
+
+    def _is_active(s: ActiveSession) -> bool:
+        exp = s.expires_at
+        if exp is None:
+            return False
+        if exp.tzinfo is not None:
+            exp = exp.replace(tzinfo=None)
+        return exp > now_naive
+
+    active_sess = sum(1 for s in all_sessions if _is_active(s))
+
+    # Storage: UPLOAD_DIR + sibling data/ directory.
+    upload_dir = settings.UPLOAD_DIR
+    data_dir = os.path.join(os.path.dirname(upload_dir.rstrip("/")) or ".", "data")
+    storage_mb = _dir_size_mb(upload_dir) + _dir_size_mb(data_dir)
+
+    def _total(u: User) -> int:
+        return _yt(u) + _cv(u) + _im(u)
+
+    top_sorted = sorted(users, key=_total, reverse=True)[:5]
+    top_users = [
+        TopUser(
+            user_id=u.id,
+            username=u.username,
+            avatar_version=u.avatar_version,
+            total_today=_total(u),
+        )
+        for u in top_sorted
+    ]
+
+    total_logs = (await db.execute(select(func.count(AuditLog.id)))).scalar() or 0
+
+    return AdminStats(
+        total_users=total_users,
+        active_users=active_users,
+        deleted_users=deleted_users,
+        total_downloads_today=dl,
+        total_conversions_today=cv,
+        total_image_ops_today=im,
+        storage_used_mb=storage_mb,
+        active_sessions=active_sess,
+        top_users=top_users,
+        total_audit_logs=total_logs,
+    )

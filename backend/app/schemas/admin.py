@@ -67,3 +67,23 @@ class AdminSessionItem(BaseModel):
     user_agent: str
     created_at: datetime
     expires_at: datetime
+
+
+class TopUser(BaseModel):
+    user_id: int
+    username: str
+    avatar_version: int
+    total_today: int
+
+
+class AdminStats(BaseModel):
+    total_users: int
+    active_users: int
+    deleted_users: int
+    total_downloads_today: int
+    total_conversions_today: int
+    total_image_ops_today: int
+    storage_used_mb: float
+    active_sessions: int
+    top_users: list[TopUser]
+    total_audit_logs: int
