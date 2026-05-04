@@ -485,26 +485,16 @@ async def get_stats(
     cv = sum(_cv(u) for u in users)
     im = sum(_im(u) for u in users)
 
-    # Active sessions: filter in Python to avoid naive/aware tz mismatch in SQLite.
     now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
-    all_sessions = (
-        await db.execute(select(ActiveSession))
-    ).scalars().all()
+    active_sess = (
+        await db.execute(
+            select(func.count(ActiveSession.id)).where(
+                ActiveSession.expires_at > now_naive
+            )
+        )
+    ).scalar() or 0
 
-    def _is_active(s: ActiveSession) -> bool:
-        exp = s.expires_at
-        if exp is None:
-            return False
-        if exp.tzinfo is not None:
-            exp = exp.replace(tzinfo=None)
-        return exp > now_naive
-
-    active_sess = sum(1 for s in all_sessions if _is_active(s))
-
-    # Storage: UPLOAD_DIR + sibling data/ directory.
-    upload_dir = settings.UPLOAD_DIR
-    data_dir = os.path.join(os.path.dirname(upload_dir.rstrip("/")) or ".", "data")
-    storage_mb = _dir_size_mb(upload_dir) + _dir_size_mb(data_dir)
+    storage_mb = _dir_size_mb(settings.UPLOAD_DIR) + _dir_size_mb(settings.DATA_DIR)
 
     def _total(u: User) -> int:
         return _yt(u) + _cv(u) + _im(u)
