@@ -151,3 +151,37 @@ async def test_storage_total_files_counts_data_and_uploads(
     result = await get_storage_info()
 
     assert result.total_files == 5
+
+
+@pytest.mark.asyncio
+async def test_storage_avatars_inside_data_not_double_counted(
+    db_session, tmp_path, monkeypatch
+):
+    """Production layout: avatars/ is nested inside data/.
+    Ensure data_size_mb and total_files do NOT double-count avatar files.
+    """
+    data_dir = tmp_path / "data"
+    avatars_dir = data_dir / "avatars"
+    uploads_dir = tmp_path / "uploads"
+    data_dir.mkdir()
+    avatars_dir.mkdir()
+    uploads_dir.mkdir()
+
+    # 1 db file in data/
+    (data_dir / "naturalsk.db").write_bytes(b"dbcontent")
+    # 2 avatar files inside data/avatars/
+    (avatars_dir / "1.webp").write_bytes(b"avatar1")
+    (avatars_dir / "2.webp").write_bytes(b"avatar2")
+    # 1 file in uploads/
+    (uploads_dir / "u.bin").write_bytes(b"u")
+
+    monkeypatch.setattr(settings, "DATA_DIR", str(data_dir))
+    monkeypatch.setattr(settings, "AVATARS_DIR", str(avatars_dir))
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(uploads_dir))
+
+    result = await get_storage_info()
+
+    # data: only the .db (avatars excluded) → 1
+    # uploads: 1
+    # avatars are reported separately, NOT counted in total_files
+    assert result.total_files == 2

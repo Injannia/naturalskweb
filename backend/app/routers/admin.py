@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,13 +50,40 @@ def _dir_size_mb(path: str) -> float:
     return round(total / (1024 * 1024), 2)
 
 
-def _count_files(path: str) -> int:
+def _prune_excluded(root: str, dirs: list[str], exclude_abs: str | None) -> None:
+    """Drop subdirectories that match the excluded absolute path so os.walk skips them."""
+    if not exclude_abs:
+        return
+    dirs[:] = [d for d in dirs if os.path.abspath(os.path.join(root, d)) != exclude_abs]
+
+
+def _count_files(path: str, exclude: str | None = None) -> int:
     if not os.path.isdir(path):
         return 0
+    exclude_abs = os.path.abspath(exclude) if exclude else None
+    path_abs = os.path.abspath(path)
     n = 0
-    for _, _, files in os.walk(path):
+    for root, dirs, files in os.walk(path_abs):
+        _prune_excluded(root, dirs, exclude_abs)
         n += len(files)
     return n
+
+
+def _dir_size_mb_excluding(path: str, exclude: str | None) -> float:
+    """Like _dir_size_mb but skips the `exclude` subtree (resolved absolute)."""
+    if not os.path.isdir(path):
+        return 0.0
+    exclude_abs = os.path.abspath(exclude) if exclude else None
+    path_abs = os.path.abspath(path)
+    total = 0
+    for root, dirs, files in os.walk(path_abs):
+        _prune_excluded(root, dirs, exclude_abs)
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return round(total / (1024 * 1024), 2)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -548,7 +576,7 @@ async def get_stats(
     dependencies=[Depends(require_superadmin)],
 )
 async def get_system_info():
-    cpu = psutil.cpu_percent(interval=0.2)
+    cpu = await run_in_threadpool(psutil.cpu_percent, 0.2)
     vm = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
     versions = get_tool_versions()
@@ -571,9 +599,14 @@ async def get_system_info():
     dependencies=[Depends(require_superadmin)],
 )
 async def get_storage_info():
+    # AVATARS_DIR may be nested inside DATA_DIR (default layout) — report
+    # disjoint sizes/counts so a UI summing them doesn't double-count avatars.
     return StorageInfo(
-        data_size_mb=_dir_size_mb(settings.DATA_DIR),
+        data_size_mb=_dir_size_mb_excluding(settings.DATA_DIR, settings.AVATARS_DIR),
         uploads_size_mb=_dir_size_mb(settings.UPLOAD_DIR),
         avatars_size_mb=_dir_size_mb(settings.AVATARS_DIR),
-        total_files=_count_files(settings.DATA_DIR) + _count_files(settings.UPLOAD_DIR),
+        total_files=(
+            _count_files(settings.DATA_DIR, exclude=settings.AVATARS_DIR)
+            + _count_files(settings.UPLOAD_DIR)
+        ),
     )
