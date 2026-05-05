@@ -1,6 +1,8 @@
 import os
+import time
 from datetime import datetime, timezone
 
+import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +19,8 @@ from app.schemas.admin import (
     CreateUserRequest,
     CreateUserResponse,
     ResetPasswordResponse,
+    StorageInfo,
+    SystemInfo,
     ToggleActiveResponse,
     TopUser,
     UpdateUserRequest,
@@ -27,6 +31,9 @@ from app.schemas.admin import (
 from app.schemas.auth import MessageResponse
 from app.utils import audit_actions
 from app.utils.audit import log_audit
+from app.utils.system_info import get_tool_versions
+
+_BOOT_TIME = psutil.boot_time()
 
 
 def _dir_size_mb(path: str) -> float:
@@ -40,6 +47,15 @@ def _dir_size_mb(path: str) -> float:
             except OSError:
                 pass
     return round(total / (1024 * 1024), 2)
+
+
+def _count_files(path: str) -> int:
+    if not os.path.isdir(path):
+        return 0
+    n = 0
+    for _, _, files in os.walk(path):
+        n += len(files)
+    return n
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -523,4 +539,41 @@ async def get_stats(
         active_sessions=active_sess,
         top_users=top_users,
         total_audit_logs=total_logs,
+    )
+
+
+@router.get(
+    "/system",
+    response_model=SystemInfo,
+    dependencies=[Depends(require_superadmin)],
+)
+async def get_system_info():
+    cpu = psutil.cpu_percent(interval=0.2)
+    vm = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    versions = get_tool_versions()
+    return SystemInfo(
+        cpu_percent=cpu,
+        ram_used_mb=round(vm.used / (1024 * 1024), 1),
+        ram_total_mb=round(vm.total / (1024 * 1024), 1),
+        disk_used_gb=round(disk.used / (1024 ** 3), 2),
+        disk_total_gb=round(disk.total / (1024 ** 3), 2),
+        uptime_seconds=int(time.time() - _BOOT_TIME),
+        python_version=versions.get("python_version", "недоступно"),
+        ffmpeg_version=versions.get("ffmpeg_version", "недоступно"),
+        yt_dlp_version=versions.get("yt_dlp_version", "недоступно"),
+    )
+
+
+@router.get(
+    "/storage",
+    response_model=StorageInfo,
+    dependencies=[Depends(require_superadmin)],
+)
+async def get_storage_info():
+    return StorageInfo(
+        data_size_mb=_dir_size_mb(settings.DATA_DIR),
+        uploads_size_mb=_dir_size_mb(settings.UPLOAD_DIR),
+        avatars_size_mb=_dir_size_mb(settings.AVATARS_DIR),
+        total_files=_count_files(settings.DATA_DIR) + _count_files(settings.UPLOAD_DIR),
     )

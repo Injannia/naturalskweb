@@ -87,3 +87,22 @@ class AdminStats(BaseModel):
     active_sessions: int
     top_users: list[TopUser]
     total_audit_logs: int
+
+
+class SystemInfo(BaseModel):
+    cpu_percent: float
+    ram_used_mb: float
+    ram_total_mb: float
+    disk_used_gb: float
+    disk_total_gb: float
+    uptime_seconds: int
+    python_version: str
+    ffmpeg_version: str
+    yt_dlp_version: str
+
+
+class StorageInfo(BaseModel):
+    data_size_mb: float
+    uploads_size_mb: float
+    avatars_size_mb: float
+    total_files: int
