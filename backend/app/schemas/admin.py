@@ -106,3 +106,18 @@ class StorageInfo(BaseModel):
     uploads_size_mb: float
     avatars_size_mb: float
     total_files: int
+
+
+class AuditLogItem(BaseModel):
+    id: int
+    user_id: int | None
+    username: str | None
+    action: str
+    details: dict | None
+    ip_address: str
+    created_at: datetime
+
+
+class AuditLogListResponse(BaseModel):
+    items: list[AuditLogItem]
+    total: int
