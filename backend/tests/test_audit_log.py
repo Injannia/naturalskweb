@@ -307,3 +307,34 @@ async def test_csv_export_contains_header_and_rows(db_session):
     assert "login" in body
     assert "1.1.1.1" in body
     assert "alice" in body
+
+
+@pytest.mark.asyncio
+async def test_csv_export_details_is_valid_json(db_session):
+    """details cell must be valid JSON (not Python repr) so a downstream
+    consumer can JSON.parse it. Also must preserve non-ASCII via
+    ensure_ascii=False."""
+    import csv as csv_mod
+    import io as io_mod
+    import json as json_mod
+
+    user = await _make_user(db_session, username="bob")
+    db_session.add(
+        AuditLog(
+            user_id=user.id,
+            action="user_updated",
+            details={"target_username": "Иван", "n": 1},
+            ip_address="2.2.2.2",
+        )
+    )
+    await db_session.commit()
+
+    response = await _call_export_audit_log(db_session)
+    body = response.body.decode() if isinstance(response.body, bytes) else response.body
+
+    rows = list(csv_mod.reader(io_mod.StringIO(body)))
+    header = rows[0]
+    data = rows[1]
+    details_idx = header.index("details")
+    parsed = json_mod.loads(data[details_idx])
+    assert parsed == {"target_username": "Иван", "n": 1}

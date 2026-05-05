@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -651,7 +652,11 @@ async def get_audit_log(
     base = _apply_audit_filter(
         base, user_id=user_id, action=action, date_from=date_from, date_to=date_to
     )
-    base = base.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
+    base = (
+        base.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     rows = (await db.execute(base)).all()
 
     cnt = select(func.count(AuditLog.id))
@@ -693,7 +698,7 @@ async def export_audit_log(
     base = _apply_audit_filter(
         base, user_id=user_id, action=action, date_from=date_from, date_to=date_to
     )
-    base = base.order_by(AuditLog.created_at.desc())
+    base = base.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
     rows = (await db.execute(base)).all()
 
     buf = io.StringIO()
@@ -702,6 +707,11 @@ async def export_audit_log(
         ["id", "created_at", "user_id", "username", "action", "ip_address", "details"]
     )
     for (log, username) in rows:
+        details_cell = (
+            json.dumps(log.details, ensure_ascii=False)
+            if log.details is not None
+            else ""
+        )
         writer.writerow(
             [
                 log.id,
@@ -710,7 +720,7 @@ async def export_audit_log(
                 username or "",
                 log.action,
                 log.ip_address or "",
-                log.details if log.details is not None else "",
+                details_cell,
             ]
         )
 
