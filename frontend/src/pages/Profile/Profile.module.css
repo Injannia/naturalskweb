@@ -254,6 +254,27 @@
   margin-top: var(--space-3, 0.75rem);
 }
 
+.avatarUploader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+}
+
+.avatarActions {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+}
+
+.cropArea {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  background: #000;
+  border-radius: var(--radius-md, 0.5rem);
+  overflow: hidden;
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
