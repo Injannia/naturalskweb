@@ -1,0 +1,81 @@
+.wrapper {
+  min-height: calc(100vh - var(--topbar-height, 64px) - 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8, 2rem) var(--space-4, 1rem);
+  gap: var(--space-10, 2.5rem);
+}
+
+.logo {
+  text-align: center;
+}
+
+.logoText {
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #fff);
+}
+
+.logoAccent {
+  color: var(--accent, #4cb3ff);
+}
+
+.subtitle {
+  color: var(--text-muted, #999);
+  font-size: var(--fs-base, 1rem);
+  margin-top: var(--space-3, 0.75rem);
+  font-family: var(--font-mono, monospace);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-4, 1rem);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  width: min(100%, 1000px);
+}
+
+.tile {
+  background: var(--bg-card, #1c1c1c);
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: var(--space-6, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+  text-decoration: none;
+  color: var(--text-primary, #fff);
+  transition: all 0.15s ease;
+}
+
+.tile:hover {
+  border-color: var(--accent, #4cb3ff);
+  background: var(--accent-glow, rgba(76, 179, 255, 0.08));
+  transform: translateY(-2px);
+}
+
+.tileIcon {
+  width: 40px;
+  height: 40px;
+  color: var(--accent, #4cb3ff);
+  margin-bottom: var(--space-2, 0.5rem);
+}
+
+.tileTitle {
+  font-size: var(--fs-lg, 1.125rem);
+  font-weight: 600;
+}
+
+.tileDesc {
+  font-size: var(--fs-sm, 0.875rem);
+  color: var(--text-muted, #999);
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import MainLayout from './components/Layout/MainLayout'
 import LoginPage from './pages/Login/LoginPage'
 import ChangePasswordPage from './pages/ChangePassword/ChangePasswordPage'
+import HomePage from './pages/Home/HomePage'
 import YouTubePage from './pages/YouTube/YouTubePage'
 import ConverterPage from './pages/Converter/ConverterPage'
 import ImageProcessorPage from './pages/ImageProcessor/ImageProcessorPage'
@@ -28,6 +29,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
+          <Route path="/" element={<HomePage />} />
           <Route
             path="/youtube"
             element={
@@ -62,7 +64,7 @@ export default function App() {
           />
         </Route>
 
-        <Route path="*" element={<Navigate to="/youtube" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
       <ToastContainer
