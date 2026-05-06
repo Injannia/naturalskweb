@@ -8,6 +8,7 @@ import MainLayout from './components/Layout/MainLayout'
 import LoginPage from './pages/Login/LoginPage'
 import ChangePasswordPage from './pages/ChangePassword/ChangePasswordPage'
 import HomePage from './pages/Home/HomePage'
+import ProfilePage from './pages/Profile/ProfilePage'
 import YouTubePage from './pages/YouTube/YouTubePage'
 import ConverterPage from './pages/Converter/ConverterPage'
 import ImageProcessorPage from './pages/ImageProcessor/ImageProcessorPage'
@@ -30,6 +31,7 @@ export default function App() {
           }
         >
           <Route path="/" element={<HomePage />} />
+          <Route path="/me" element={<ProfilePage />} />
           <Route
             path="/youtube"
             element={
