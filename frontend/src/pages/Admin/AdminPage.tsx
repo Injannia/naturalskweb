@@ -11,6 +11,7 @@ import EditUserModal from './EditUserModal'
 import ResetPasswordModal from './ResetPasswordModal'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import AuditLogTab from './AuditLogTab'
+import MonitoringTab from './MonitoringTab'
 import styles from './Admin.module.css'
 
 type Tab = 'users' | 'audit' | 'monitoring' | 'profile'
@@ -98,7 +99,7 @@ export default function AdminPage() {
         />
       )}
       {tab === 'audit' && <AuditLogTab />}
-      {tab === 'monitoring' && isSuperadmin && <div>Мониторинг (Task 23)</div>}
+      {tab === 'monitoring' && isSuperadmin && <MonitoringTab />}
       {tab === 'profile' && <ProfileTab />}
 
       {showCreate && (
