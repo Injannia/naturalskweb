@@ -4,6 +4,9 @@ import AvatarImage from '../../components/AvatarImage'
 import type { User } from '../../types'
 import { useAuth } from '../../stores/authStore'
 import UsageBars from './UsageBars'
+import SessionsList from './SessionsList'
+import ChangeUsernameForm from './ChangeUsernameForm'
+import ChangePasswordForm from './ChangePasswordForm'
 import styles from './Profile.module.css'
 
 function formatDate(iso: string | undefined | null): string {
@@ -44,6 +47,16 @@ export default function ProfileTab() {
       </section>
 
       <UsageBars user={me} />
+
+      <SessionsList />
+
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Безопасность</h3>
+        <div className={styles.actionsRow}>
+          <ChangeUsernameForm />
+          <ChangePasswordForm />
+        </div>
+      </section>
     </div>
   )
 }

@@ -114,6 +114,146 @@
   font-size: var(--fs-sm, 0.875rem);
 }
 
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4, 1rem);
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+}
+
+.sessionList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+
+.sessionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3, 0.75rem);
+  background: var(--bg-secondary, #2a2a2a);
+  border-radius: var(--radius-md, 0.5rem);
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+}
+
+.sessionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 0.25rem);
+  min-width: 0;
+}
+
+.sessionLine {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  align-items: center;
+}
+
+.sessionMeta {
+  font-size: var(--fs-xs, 0.75rem);
+  color: var(--text-muted, #999);
+  font-family: var(--font-mono, monospace);
+}
+
+.badge {
+  background: var(--accent-glow, rgba(76, 179, 255, 0.15));
+  color: var(--accent, #4cb3ff);
+  font-size: var(--fs-xs, 0.75rem);
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+}
+
+.actionsRow {
+  display: flex;
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+}
+
+.inlineForm {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  flex-wrap: wrap;
+}
+
+.input {
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: var(--bg-secondary, #2a2a2a);
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-md, 0.5rem);
+  color: var(--text-primary, #fff);
+  font-family: var(--font-ui, inherit);
+}
+
+.btnPrimary {
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  background: var(--accent, #4cb3ff);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 0.5rem);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  background: transparent;
+  color: var(--text-primary, #fff);
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-md, 0.5rem);
+  cursor: pointer;
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  background: transparent;
+  color: var(--danger, #d44);
+  border: 1px solid var(--danger, #d44);
+  border-radius: var(--radius-md, 0.5rem);
+  cursor: pointer;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--bg-card, #1c1c1c);
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: var(--space-6, 1.5rem);
+  width: min(90vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--space-3, 0.75rem);
+  justify-content: flex-end;
+  margin-top: var(--space-3, 0.75rem);
+}
+
 @media (max-width: 640px) {
   .header {
     flex-direction: column;
