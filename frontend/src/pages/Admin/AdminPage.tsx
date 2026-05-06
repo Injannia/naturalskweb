@@ -1,10 +1,25 @@
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
 import ProfileTab from '../Profile/ProfileTab'
 import UsersTab from './UsersTab'
+import CreateUserModal from './CreateUserModal'
+import EditUserModal from './EditUserModal'
+import ResetPasswordModal from './ResetPasswordModal'
+import ConfirmDeleteModal from './ConfirmDeleteModal'
 import styles from './Admin.module.css'
 
 type Tab = 'users' | 'audit' | 'monitoring' | 'profile'
+
+function errorMessage(e: unknown, fallback: string): string {
+  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
+    return e.response.data.detail
+  }
+  return fallback
+}
 
 export default function AdminPage() {
   const { user } = useAuth()
@@ -14,8 +29,30 @@ export default function AdminPage() {
 
   const setTab = (t: Tab) => { setParams({ tab: t }) }
 
-  // Заглушки — модалки появятся в Task 21
-  const noop = () => alert('TODO Task 21')
+  const [showCreate, setShowCreate] = useState(false)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [resetId, setResetId] = useState<number | null>(null)
+  const [deleteCtx, setDeleteCtx] = useState<{ id: number; username: string } | null>(null)
+  const [usersRefresh, setUsersRefresh] = useState(0)
+  const triggerRefresh = () => setUsersRefresh((v) => v + 1)
+
+  const onToggle = async (id: number) => {
+    try {
+      await api.post(`/admin/users/${id}/toggle-active`)
+      triggerRefresh()
+    } catch (e: unknown) {
+      toast.error(errorMessage(e, 'Ошибка переключения статуса'))
+    }
+  }
+
+  const onDeleteAsk = async (id: number) => {
+    try {
+      const { data } = await api.get<{ username: string }>(`/admin/users/${id}`)
+      setDeleteCtx({ id, username: data.username })
+    } catch (e: unknown) {
+      toast.error(errorMessage(e, 'Ошибка загрузки пользователя'))
+    }
+  }
 
   return (
     <div className={styles.page}>
@@ -51,16 +88,39 @@ export default function AdminPage() {
 
       {tab === 'users' && (
         <UsersTab
-          onCreate={noop}
-          onEdit={noop}
-          onResetPassword={noop}
-          onToggle={noop}
-          onDelete={noop}
+          key={usersRefresh}
+          onCreate={() => setShowCreate(true)}
+          onEdit={(id) => setEditId(id)}
+          onResetPassword={(id) => setResetId(id)}
+          onToggle={onToggle}
+          onDelete={onDeleteAsk}
         />
       )}
       {tab === 'audit' && <div>Аудит-лог (Task 22)</div>}
       {tab === 'monitoring' && isSuperadmin && <div>Мониторинг (Task 23)</div>}
       {tab === 'profile' && <ProfileTab />}
+
+      {showCreate && (
+        <CreateUserModal onClose={() => setShowCreate(false)} onCreated={triggerRefresh} />
+      )}
+      {editId !== null && (
+        <EditUserModal
+          userId={editId}
+          onClose={() => setEditId(null)}
+          onSaved={triggerRefresh}
+        />
+      )}
+      {resetId !== null && (
+        <ResetPasswordModal userId={resetId} onClose={() => setResetId(null)} />
+      )}
+      {deleteCtx && (
+        <ConfirmDeleteModal
+          userId={deleteCtx.id}
+          username={deleteCtx.username}
+          onClose={() => setDeleteCtx(null)}
+          onDeleted={triggerRefresh}
+        />
+      )}
     </div>
   )
 }
