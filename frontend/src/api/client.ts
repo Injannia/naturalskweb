@@ -1,5 +1,17 @@
 import axios from 'axios'
+import { toast } from 'react-toastify'
 import type { TokenResponse } from '../types'
+
+function forceLogout(message = 'Сессия завершена. Войдите снова.') {
+  // Avoid showing the toast or redirecting while the user is already on /login —
+  // there's no session to terminate from their perspective.
+  const onLogin = window.location.pathname === '/login'
+  localStorage.clear()
+  if (!onLogin) {
+    toast.info(message)
+    window.location.href = '/login'
+  }
+}
 
 const api = axios.create({
   baseURL: '/api',
@@ -36,8 +48,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('refresh_token')
       if (!refreshToken) {
-        localStorage.clear()
-        window.location.href = '/login'
+        forceLogout()
         return Promise.reject(error)
       }
 
@@ -67,8 +78,7 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.clear()
-        window.location.href = '/login'
+        forceLogout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
