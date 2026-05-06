@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
+import AvatarImage from '../AvatarImage'
 import styles from './Layout.module.css'
 
 interface TopbarProps {
@@ -33,9 +34,7 @@ export default function Topbar({ onMenuClick, sidebarOpen }: TopbarProps) {
 
       <div className={styles.topbarRight}>
         <div className={styles.userInfo}>
-          <div className={styles.userAvatar}>
-            {user?.username.charAt(0).toUpperCase()}
-          </div>
+          <AvatarImage userId={user?.id} version={user?.avatar_version ?? 0} size={36} />
           <div>
             <div className={styles.userName}>{user?.username}</div>
             <div className={styles.userRole}>{user?.role}</div>
