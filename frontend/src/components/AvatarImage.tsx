@@ -11,7 +11,9 @@ interface Props {
 }
 
 export default function AvatarImage({ userId, version = 0, size = 32, className }: Props) {
-  const url = userId ? `/users/${userId}/avatar?v=${version}` : null
+  // Skip the fetch when there's no avatar yet (version === 0): the backend
+  // would 404 and we'd render the same fallback anyway.
+  const url = userId && version > 0 ? `/users/${userId}/avatar?v=${version}` : null
   const src = useAuthedImage(url)
 
   const style: CSSProperties = {
