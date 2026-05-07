@@ -469,19 +469,20 @@ async def kill_session(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сессия не найдена")
 
+    # ON DELETE CASCADE on ActiveSession.user_id guarantees a session always
+    # has a live owner — orphans are impossible at the schema level.
     target = (
         await db.execute(select(User).where(User.id == session.user_id))
-    ).scalar_one_or_none()
+    ).scalar_one()
 
-    if target and actor.role == "admin" and target.role == "superadmin":
+    if actor.role == "admin" and target.role == "superadmin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
 
-    target_user_id = session.user_id
-    target_username = target.username if target else "?"
+    target_user_id = target.id
+    target_username = target.username
 
     await db.delete(session)
-    if target:
-        target.kicked_at = datetime.now(timezone.utc)
+    target.kicked_at = datetime.now(timezone.utc)
 
     await log_audit(
         db,

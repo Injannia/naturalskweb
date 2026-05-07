@@ -23,7 +23,9 @@ class ActiveSession(Base):
     __tablename__ = "active_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     token_jti: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     ip_address: Mapped[str] = mapped_column(String(45), default="", nullable=False)
     user_agent: Mapped[str] = mapped_column(String(256), default="", nullable=False)

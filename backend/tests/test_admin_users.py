@@ -628,3 +628,64 @@ async def test_update_user_audit_log_records_old_value(db_session):
     before, after = log.details["changes"]["permissions"]
     assert before == old_perms
     assert after == new_perms
+
+
+# ---------------------------------------------------------------------------
+# CASCADE on ActiveSession.user_id (FK enforcement)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_active_session_cascade_on_user_delete():
+    """Hard-deleting a User must cascade-delete every ActiveSession row.
+    The shared db_session fixture has FK enforcement off; spin up a dedicated
+    engine with PRAGMA foreign_keys=ON to verify the schema-level cascade.
+    """
+    from datetime import timedelta
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy import text
+    from app.core.database import Base
+    from app.core.security import hash_password
+    from app.models.audit import ActiveSession
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys = ON"))
+        from app.models import download_task, shared_file  # noqa: F401
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        async with factory() as db:
+            await db.execute(text("PRAGMA foreign_keys = ON"))
+            user = User(
+                username="cascade_target",
+                password_hash=hash_password("Password1"),
+                role="user",
+                is_active=True,
+                must_change_password=False,
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+
+            session_row = ActiveSession(
+                user_id=user.id,
+                token_jti="cascade-jti",
+                ip_address="127.0.0.1",
+                user_agent="pytest",
+                created_at=datetime.now(timezone.utc),
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            )
+            db.add(session_row)
+            await db.commit()
+
+            await db.delete(user)
+            await db.commit()
+
+            remaining = (
+                await db.execute(select(ActiveSession).where(ActiveSession.user_id == user.id))
+            ).scalars().all()
+            assert remaining == []
+    finally:
+        await engine.dispose()

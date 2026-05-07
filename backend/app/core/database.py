@@ -25,10 +25,11 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 @event.listens_for(engine.sync_engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
-    """Enable WAL mode and set busy timeout on every new SQLite connection."""
+    """Enable WAL mode, busy timeout, and FK enforcement on every new SQLite connection."""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
 
