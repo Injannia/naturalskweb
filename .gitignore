@@ -9,15 +9,30 @@ backend/.env
 backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal
+backend/data/initial_admin_password.txt
+backend/data/avatars/*
+!backend/data/avatars/.gitkeep
 backend/uploads/
 
 # Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+frontend/tsconfig.tsbuildinfo
 
 # Bun
 frontend/bun.lockb
+
+# Playwright-cli snapshots and caches
+.playwright-cli/
+.playwright/
+backend/.playwright-cli/
+frontend/.playwright-cli/
+backend/*.yml
+frontend/*.yml
+
+# Local Claude Code settings (per-user, not per-project)
+.claude/
 
 # OS
 .DS_Store
