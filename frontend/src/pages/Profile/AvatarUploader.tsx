@@ -7,7 +7,7 @@ import { toast } from 'react-toastify'
 import api from '../../api/client'
 import AvatarImage from '../../components/AvatarImage'
 import { useAuth } from '../../stores/authStore'
-import type { AvatarUploadResponse, User } from '../../types'
+import type { AvatarUploadResponse } from '../../types'
 import styles from './Profile.module.css'
 
 async function getCroppedBlob(imageSrc: string, area: Area): Promise<Blob> {
@@ -82,11 +82,12 @@ export default function AvatarUploader() {
       const blob = await getCroppedBlob(imageSrc, areaPx)
       const fd = new FormData()
       fd.append('file', blob, 'avatar.jpg')
-      await api.post<AvatarUploadResponse>('/me/avatar', fd, {
+      const { data } = await api.post<AvatarUploadResponse>('/me/avatar', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      const fresh = await api.get<User>('/auth/me')
-      setUser(fresh.data)
+      // Update user state synchronously from the POST response. Avoid the
+      // extra GET /auth/me — the 15s polling could race and overwrite this.
+      setUser({ ...user, avatar_version: data.avatar_version })
       setImageSrc(null)
       toast.success('Аватар обновлён')
     } catch (e) {
@@ -100,8 +101,10 @@ export default function AvatarUploader() {
     setBusy(true)
     try {
       await api.delete('/me/avatar')
-      const fresh = await api.get<User>('/auth/me')
-      setUser(fresh.data)
+      // Bump avatar_version so AvatarImage's URL changes and the next render
+      // refetches; absent file → backend will 404 → fallback icon.
+      // Stays out of the /auth/me polling race.
+      setUser({ ...user, avatar_version: (user.avatar_version ?? 0) + 1 })
       toast.success('Аватар удалён')
     } catch (e) {
       toast.error(errorMessage(e, 'Ошибка'))

@@ -80,11 +80,29 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
 
     refresh_payload = decode_token(refresh_token)
+    ip_address = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")[:256]
+
+    # Deduplicate: a user logging in repeatedly from the same browser would
+    # otherwise pile up identical-looking session rows. Drop any existing
+    # session with the same (user_id, ip, user_agent) before creating a new one.
+    existing_dupes = (
+        await db.execute(
+            select(ActiveSession).where(
+                ActiveSession.user_id == user.id,
+                ActiveSession.ip_address == ip_address,
+                ActiveSession.user_agent == user_agent,
+            )
+        )
+    ).scalars().all()
+    for dup in existing_dupes:
+        await db.delete(dup)
+
     session = ActiveSession(
         user_id=user.id,
         token_jti=refresh_payload["jti"],
-        ip_address=request.client.host if request.client else "",
-        user_agent=request.headers.get("user-agent", "")[:256],
+        ip_address=ip_address,
+        user_agent=user_agent,
         expires_at=datetime.fromtimestamp(refresh_payload["exp"], tz=timezone.utc),
     )
     db.add(session)
