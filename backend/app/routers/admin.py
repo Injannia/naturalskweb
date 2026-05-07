@@ -585,7 +585,10 @@ async def get_stats(
 async def get_system_info():
     cpu = await run_in_threadpool(psutil.cpu_percent, 0.2)
     vm = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
+    # Report disk usage for the data partition; fall back to root if DATA_DIR
+    # doesn't exist yet (e.g. on first boot before lifespan creates it).
+    disk_path = settings.DATA_DIR if os.path.isdir(settings.DATA_DIR) else "/"
+    disk = psutil.disk_usage(disk_path)
     versions = get_tool_versions()
     return SystemInfo(
         cpu_percent=cpu,

@@ -224,6 +224,18 @@ async def _warmup_image_models() -> None:
         logger.exception("warmup: LaMa session failed")
 
 
+async def _warmup_tool_versions() -> None:
+    """Background task: prime the tool-version cache (subprocesses for ffmpeg/yt-dlp).
+    Without this, the first /api/admin/system call eats the cold subprocess cost."""
+    from app.utils.system_info import get_tool_versions
+
+    try:
+        await asyncio.to_thread(get_tool_versions)
+        logger.info("warmup: tool versions cached")
+    except Exception:
+        logger.exception("warmup: tool versions failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.AVATARS_DIR, exist_ok=True)
@@ -231,6 +243,7 @@ async def lifespan(app: FastAPI):
     await _create_superadmin()
     scheduler = _setup_scheduler()
     asyncio.create_task(_warmup_image_models())
+    asyncio.create_task(_warmup_tool_versions())
     logger.info("NaturalskWeb backend started")
     yield
     scheduler.shutdown(wait=False)
