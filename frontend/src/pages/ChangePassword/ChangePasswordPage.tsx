@@ -69,7 +69,7 @@ export default function ChangePasswordPage() {
       setUser(user)
 
       toast.success('Пароль успешно изменён')
-      navigate('/youtube', { replace: true })
+      navigate('/', { replace: true })
     } catch (err: unknown) {
       if (
         typeof err === 'object' &&

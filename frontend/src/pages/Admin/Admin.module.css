@@ -1,0 +1,85 @@
+.page { max-width: 1200px; margin: 0 auto; }
+.tabs { display: flex; gap: var(--space-2); border-bottom: 1px solid var(--border); margin-bottom: var(--space-6); }
+.tab { padding: var(--space-3) var(--space-5); background: none; border: none; color: var(--text-secondary); font-size: var(--fs-sm); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab:hover { color: var(--text-primary); }
+.tabActive { color: var(--accent, #4cb3ff); border-bottom-color: var(--accent, #4cb3ff); }
+
+.toolbar { display: flex; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; align-items: center; }
+.toolbar input, .toolbar select { padding: var(--space-2) var(--space-3); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); }
+.toolbarSpacer { flex: 1; }
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.table th, .table td { padding: var(--space-3); text-align: left; border-bottom: 1px solid var(--border); }
+.table th { color: var(--text-muted); font-weight: 500; font-family: var(--font-mono); text-transform: uppercase; font-size: var(--fs-xs); letter-spacing: 1px; }
+.table tr:hover { background: var(--bg-hover); }
+
+.roleBadge { display: inline-block; padding: 2px 8px; border-radius: var(--radius-full); font-family: var(--font-mono); font-size: var(--fs-xs); }
+.roleSuperadmin { background: rgba(212, 167, 0, 0.15); color: #d4a700; }
+.roleAdmin { background: var(--accent-glow); color: var(--accent, #4cb3ff); }
+.roleUser { background: var(--bg-secondary); color: var(--text-secondary); }
+
+.statusBadge { font-family: var(--font-mono); font-size: var(--fs-xs); padding: 2px 8px; border-radius: var(--radius-full); }
+.statusActive { background: rgba(50, 200, 50, 0.15); color: #5c5; }
+.statusInactive { background: var(--bg-secondary); color: var(--text-muted); }
+.statusDeleted { background: rgba(220, 80, 80, 0.15); color: var(--danger, #f04747); }
+
+.usageCompact { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
+
+.actions { display: flex; gap: var(--space-1); }
+.iconBtn { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); cursor: pointer; color: var(--text-secondary); display: inline-flex; align-items: center; gap: var(--space-1); }
+.iconBtn:hover { color: var(--text-primary); border-color: var(--accent, #4cb3ff); }
+.iconBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.pagination { display: flex; gap: var(--space-2); align-items: center; justify-content: flex-end; margin-top: var(--space-4); }
+.pageInfo { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3, 0.75rem);
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.card {
+  background: var(--bg-card, #1c1c1c);
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius-lg, 0.75rem);
+  padding: var(--space-4, 1rem);
+}
+
+.cardLabel {
+  color: var(--text-muted, #999);
+  font-size: var(--fs-xs, 0.75rem);
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cardValue {
+  font-size: var(--fs-2xl, 1.5rem);
+  font-weight: 600;
+  margin-top: var(--space-2, 0.5rem);
+}
+
+.cardBar {
+  height: 6px;
+  background: var(--bg-secondary, #2a2a2a);
+  border-radius: var(--radius-full, 9999px);
+  margin-top: var(--space-3, 0.75rem);
+  overflow: hidden;
+}
+
+.cardBarFill {
+  height: 100%;
+  background: var(--accent, #4cb3ff);
+  transition: width 0.15s ease;
+}
+
+.versions {
+  color: var(--text-muted, #999);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-xs, 0.75rem);
+  margin-top: var(--space-6, 1.5rem);
+  padding-top: var(--space-4, 1rem);
+  border-top: 1px solid var(--border, #333);
+}

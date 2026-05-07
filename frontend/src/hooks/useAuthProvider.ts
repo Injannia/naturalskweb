@@ -33,6 +33,32 @@ export function useAuthProvider(): AuthState {
       .finally(() => setLoading(false))
   }, [])
 
+  // Background poll: catch admin-side permission/role/active changes within ~15s.
+  // Skip while the tab is hidden so we don't burn requests on inactive tabs;
+  // 401 from kicked_at/is_deleted is handled by the axios interceptor.
+  useEffect(() => {
+    if (!user) return
+    const POLL_MS = 15_000
+    let stopped = false
+
+    const tick = async () => {
+      if (stopped) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      try {
+        const { data } = await api.get<User>('/auth/me')
+        if (!stopped) setUser(data)
+      } catch {
+        // axios interceptor handles 401 (forced logout)
+      }
+    }
+
+    const id = window.setInterval(tick, POLL_MS)
+    return () => {
+      stopped = true
+      window.clearInterval(id)
+    }
+  }, [user?.id])
+
   return {
     user,
     isAuthenticated: !!user,

@@ -39,7 +39,7 @@ export default function LoginPage() {
       if (data.must_change_password) {
         navigate('/change-password', { replace: true })
       } else {
-        navigate('/youtube', { replace: true })
+        navigate('/', { replace: true })
       }
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response) {

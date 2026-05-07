@@ -16,6 +16,7 @@ GET    /api/image/tasks/history           — list hidden tasks
 DELETE /api/image/task/{task_id}          — dismiss (soft-delete) a task
 DELETE /api/image/tasks/completed         — dismiss all terminal tasks
 POST   /api/image/task/{task_id}/restore  — un-dismiss a task
+DELETE /api/image/task/{task_id}/permanent — permanently delete a terminal task
 """
 
 import asyncio
@@ -622,6 +623,41 @@ async def restore_task(
         )
 
     logger.info("Image task %s restored by user %d", task_id, user.id)
+    return {"detail": "ok"}
+
+
+@router.delete("/task/{task_id}/permanent", response_model=dict)
+async def delete_task_permanent(
+    task_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Permanently delete an image task — removes files from disk and DB record.
+
+    Only works for terminal tasks (ready/error).
+    """
+    _require_image_permission(user)
+
+    deleted = await image_service.delete_task_permanent(
+        task_id=task_id, user_id=user.id, db=db,
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Задача не найдена или ещё активна",
+        )
+
+    await _log_audit(
+        db=db,
+        user_id=user.id,
+        action="image_delete_permanent",
+        details={"task_id": task_id},
+        request=request,
+    )
+    await db.commit()
+
+    logger.info("Image task %s permanently deleted by user %d", task_id, user.id)
     return {"detail": "ok"}
 
 

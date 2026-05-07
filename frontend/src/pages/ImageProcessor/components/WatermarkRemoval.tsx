@@ -3,41 +3,63 @@ import { Download, RotateCcw, Loader2, Paintbrush, Square, Eraser, Undo2, Trash2
 import { toast } from 'react-toastify'
 
 import { imageApi } from '../imageApi'
-import type { WmPhase, ImageUploadResponse, MaskShape, MaskTool, InpaintMethod } from '../types'
+import type {
+  ImageTaskListItem,
+  ImageUploadResponse,
+  MaskShape,
+  MaskTool,
+  InpaintMethod,
+} from '../types'
 import { ImageUploader } from './ImageUploader'
 import { ImageCompare } from './ImageCompare'
 import MaskCanvas from './MaskCanvas'
 import styles from './WatermarkRemoval.module.css'
 
+type LocalPhase = 'idle' | 'editing' | 'error'
+
 interface WatermarkRemovalProps {
+  currentTask: ImageTaskListItem | null
+  onProcessStart: (task: ImageTaskListItem) => void
+  onReset: () => void
   onQuotaChange?: () => void
 }
 
-export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProps) {
-  const [phase, setPhase] = useState<WmPhase>('idle')
+export default function WatermarkRemoval({
+  currentTask,
+  onProcessStart,
+  onReset,
+}: WatermarkRemovalProps) {
+  const [localPhase, setLocalPhase] = useState<LocalPhase>('idle')
   const [taskId, setTaskId] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [resultPreviewUrl, setResultPreviewUrl] = useState('')
-  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [originalFilename, setOriginalFilename] = useState('')
   const [originalExt, setOriginalExt] = useState('')
 
-  // Canvas state
+  // Canvas state — остаётся локальным
   const [shapes, setShapes] = useState<MaskShape[]>([])
   const [tool, setTool] = useState<MaskTool>('brush')
   const [brushSize, setBrushSize] = useState(30)
   const [inpaintMethod, setInpaintMethod] = useState<InpaintMethod>('lama')
   const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 })
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pollCountRef = useRef(0)
-  const MAX_POLL_COUNT = 150 // 5 minutes at 2s interval
+  // Статус из внешнего источника (список задач в родителе)
+  const processing = currentTask?.status === 'processing' || currentTask?.status === 'uploading'
+  const ready = currentTask?.status === 'ready'
+  const errored = currentTask?.status === 'error'
 
-  // ── Cleanup polling and revoke blob URLs on unmount ──
+  // Отображаемая фаза
+  const phase: 'idle' | 'editing' | 'processing' | 'result' | 'error' = processing
+    ? 'processing'
+    : ready
+      ? 'result'
+      : errored
+        ? 'error'
+        : localPhase
+
+  // ── Cleanup blob URLs on unmount ──
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
     }
@@ -54,109 +76,120 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
     img.src = previewUrl
   }, [previewUrl])
 
+  // ── Когда задача становится ready — подтягиваем result-preview для ImageCompare ──
+  useEffect(() => {
+    if (ready && currentTask && !resultPreviewUrl) {
+      imageApi.getResultPreview(currentTask.task_id)
+        .then(setResultPreviewUrl)
+        .catch(() => undefined)
+    }
+  }, [ready, currentTask, resultPreviewUrl])
+
+  // ── После F5 локальный previewUrl пуст, но задача уже ready — подтягиваем оригинал ──
+  useEffect(() => {
+    if (ready && currentTask && !previewUrl) {
+      imageApi.getPreview(currentTask.task_id)
+        .then(setPreviewUrl)
+        .catch(() => undefined)
+    }
+  }, [ready, currentTask, previewUrl])
+
+  // ── Когда задача становится error — показываем сообщение ──
+  useEffect(() => {
+    if (errored && currentTask?.error) {
+      setError(currentTask.error)
+    }
+  }, [errored, currentTask])
+
+  // ── Когда родитель отвязывает currentTask (dismiss / permanent-delete карточки),
+  // сбрасываем локальную фазу + маску — иначе редактор остаётся с устаревшим
+  // blob и shape-state предыдущей задачи. ──
+  const lastBoundTaskIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (currentTask) {
+      lastBoundTaskIdRef.current = currentTask.task_id
+    } else if (lastBoundTaskIdRef.current !== null) {
+      lastBoundTaskIdRef.current = null
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
+      setLocalPhase('idle')
+      setTaskId(null)
+      setPreviewUrl('')
+      setResultPreviewUrl('')
+      setError(null)
+      setOriginalExt('')
+      setShapes([])
+      setImageNaturalSize({ width: 0, height: 0 })
+    }
+  }, [currentTask, previewUrl, resultPreviewUrl])
+
   // ── Handlers ──
 
   const handleUploaded = useCallback(async (response: ImageUploadResponse) => {
     setTaskId(response.task_id)
-    setOriginalFilename(response.original_filename)
     setOriginalExt(response.original_ext)
     try {
       const url = await imageApi.getPreview(response.task_id)
       setPreviewUrl(url)
       setShapes([])
-      setPhase('editing')
+      setLocalPhase('editing')
     } catch {
       setError('Не удалось загрузить превью')
-      setPhase('error')
+      setLocalPhase('error')
     }
   }, [])
 
   const handleProcess = useCallback(async () => {
     if (!taskId || shapes.length === 0) return
-    setPhase('processing')
-    setProgress(0)
-
     try {
-      await imageApi.removeWatermark(taskId, shapes, inpaintMethod, imageNaturalSize.width)
-
-      pollCountRef.current = 0
-      pollRef.current = setInterval(async () => {
-        pollCountRef.current += 1
-        if (pollCountRef.current > MAX_POLL_COUNT) {
-          if (pollRef.current) clearInterval(pollRef.current)
-          pollRef.current = null
-          setError('Обработка заняла слишком много времени')
-          setPhase('error')
-          return
-        }
-        try {
-          const status = await imageApi.getStatus(taskId)
-          setProgress(status.progress)
-
-          if (status.status === 'ready') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            try {
-              const resultUrl = await imageApi.getResultPreview(taskId)
-              setResultPreviewUrl(resultUrl)
-            } catch { /* preview load failed, proceed anyway */ }
-            setPhase('result')
-            onQuotaChange?.()
-          } else if (status.status === 'error') {
-            if (pollRef.current) clearInterval(pollRef.current)
-            pollRef.current = null
-            setError(status.error ?? 'Неизвестная ошибка')
-            setPhase('error')
-          }
-        } catch {
-          // Transient network error — keep polling
-        }
-      }, 2000)
+      const task = await imageApi.removeWatermark(
+        taskId,
+        shapes,
+        inpaintMethod,
+        imageNaturalSize.width,
+      )
+      onProcessStart({ ...task, file_exists: false })
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
         'Не удалось запустить обработку'
       setError(message)
-      setPhase('error')
+      setLocalPhase('error')
     }
-  }, [taskId, shapes, inpaintMethod, imageNaturalSize.width, onQuotaChange])
+  }, [taskId, shapes, inpaintMethod, imageNaturalSize.width, onProcessStart])
 
   const handleDownload = useCallback(async () => {
-    if (!taskId) return
+    if (!currentTask) return
     try {
-      const { blob } = await imageApi.downloadResult(taskId)
+      const { blob } = await imageApi.downloadResult(currentTask.task_id)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const baseName = originalFilename.replace(/\.[^.]+$/, '')
-      a.download = `${baseName}_cleaned.${originalExt || 'png'}`
+      const baseName = currentTask.original_filename.replace(/\.[^.]+$/, '')
+      const ext = originalExt || currentTask.original_ext || 'png'
+      a.download = `${baseName}_cleaned.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 0)
     } catch {
       toast.error('Не удалось скачать результат.')
     }
-  }, [taskId, originalFilename, originalExt])
+  }, [currentTask, originalExt])
 
   const handleReset = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     if (resultPreviewUrl) URL.revokeObjectURL(resultPreviewUrl)
-    setPhase('idle')
+    setLocalPhase('idle')
     setTaskId(null)
     setPreviewUrl('')
     setResultPreviewUrl('')
-    setProgress(0)
     setError(null)
-    setOriginalFilename('')
     setOriginalExt('')
     setShapes([])
     setImageNaturalSize({ width: 0, height: 0 })
-  }, [previewUrl, resultPreviewUrl])
+    onReset()
+  }, [previewUrl, resultPreviewUrl, onReset])
 
   const handleUndo = useCallback(() => {
     setShapes((prev) => prev.slice(0, -1))
@@ -295,14 +328,16 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
       {phase === 'processing' && (
         <div className={styles.processingSection}>
           <Loader2 size={32} className={styles.iconSpin} aria-hidden="true" />
-          <p className={styles.processingText}>Обработка... {progress}%</p>
+          <p className={styles.processingText}>
+            Обработка... {currentTask?.progress ?? 0}%
+          </p>
           <div className={styles.progressBarWrap}>
             <div
               className={styles.progressBarFill}
-              style={{ width: `${progress}%` }}
+              style={{ width: `${currentTask?.progress ?? 0}%` }}
             />
           </div>
-          {inpaintMethod === 'lama' && (
+          {(currentTask?.inpaint_method ?? inpaintMethod) === 'lama' && (
             <p className={styles.processingHint}>
               LaMa работает локально на CPU и может занять до минуты.
             </p>
@@ -310,11 +345,15 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
         </div>
       )}
 
-      {phase === 'result' && (
+      {phase === 'result' && currentTask && (
         <div className={styles.resultSection}>
           <ImageCompare beforeSrc={previewUrl} afterSrc={resultPreviewUrl} />
           <div className={styles.resultActions}>
-            <button className={styles.successBtn} onClick={handleDownload}>
+            <button
+              className={styles.successBtn}
+              onClick={handleDownload}
+              disabled={!currentTask.file_exists}
+            >
               <Download size={16} aria-hidden="true" />
               Скачать результат
             </button>
@@ -328,7 +367,7 @@ export default function WatermarkRemoval({ onQuotaChange }: WatermarkRemovalProp
 
       {phase === 'error' && (
         <div className={styles.errorSection}>
-          <p className={styles.errorMessage}>{error}</p>
+          <p className={styles.errorMessage}>{error ?? currentTask?.error}</p>
           <button className={styles.secondaryBtn} onClick={handleReset}>
             <RotateCcw size={16} aria-hidden="true" />
             Попробовать снова

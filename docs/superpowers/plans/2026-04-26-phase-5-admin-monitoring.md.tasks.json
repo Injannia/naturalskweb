@@ -1,0 +1,180 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-26-phase-5-admin-monitoring.md",
+  "tasks": [
+    {
+      "id": 10,
+      "subject": "Task 0: Изменения модели User и пересоздание БД",
+      "status": "completed",
+      "description": "**Goal:** Расширить User четырьмя полями (avatar_path, avatar_version, is_deleted, kicked_at) и пересоздать БД.\n\n```json:metadata\n{\"files\":[\"backend/app/models/user.py\"],\"verifyCommand\":\"sqlite3 backend/data/naturalsk.db 'PRAGMA table_info(users);' | grep -E 'avatar_path|avatar_version|is_deleted|kicked_at'\",\"acceptanceCriteria\":[\"Поля добавлены\",\"БД пересоздана\",\"superadmin создан\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 1: Утилиты — audit logging, system_info, user_agent",
+      "status": "completed",
+      "blockedBy": [10],
+      "description": "**Goal:** utils/audit.py, utils/audit_actions.py, utils/user_agent.py, utils/system_info.py + перенести _log_audit из auth.py.\n\n```json:metadata\n{\"files\":[\"backend/app/utils/audit.py\",\"backend/app/utils/audit_actions.py\",\"backend/app/utils/user_agent.py\",\"backend/app/utils/system_info.py\",\"backend/app/routers/auth.py\",\"backend/tests/test_utils.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_utils.py tests/test_auth.py -v\",\"acceptanceCriteria\":[\"log_audit\",\"actions константы\",\"parse_user_agent\",\"get_tool_versions с кэшем\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 2: Auth-зависимости — kicked_at, is_deleted, require_superadmin",
+      "status": "completed",
+      "blockedBy": [11],
+      "description": "**Goal:** В get_current_user проверять is_deleted и kicked_at; auth.login прячет факт удаления; добавить require_superadmin.\n\n```json:metadata\n{\"files\":[\"backend/app/dependencies.py\",\"backend/app/routers/auth.py\",\"backend/tests/test_auth_extras.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_auth_extras.py -v\",\"acceptanceCriteria\":[\"is_deleted=401\",\"login deleted = invalid credentials\",\"kicked_at инвалидирует токен\",\"require_superadmin\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 3: Раздача аватаров — routers/users.py",
+      "status": "completed",
+      "blockedBy": [12],
+      "description": "**Goal:** GET /api/users/{id}/avatar для залогиненных. Добавить AVATARS_DIR в config.\n\n```json:metadata\n{\"files\":[\"backend/app/core/config.py\",\"backend/app/main.py\",\"backend/app/routers/users.py\",\"backend/tests/test_avatar_serve.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_avatar_serve.py -v\",\"acceptanceCriteria\":[\"AVATARS_DIR создаётся\",\"404 без файла\",\"401 без токена\",\"200 с файлом image/webp\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 4: Schemas + базовые /api/me эндпоинты",
+      "status": "completed",
+      "blockedBy": [13],
+      "description": "**Goal:** schemas/me.py + routers/me.py (GET/PATCH /me, /me/sessions CRUD).\n\n```json:metadata\n{\"files\":[\"backend/app/schemas/me.py\",\"backend/app/routers/me.py\",\"backend/app/main.py\",\"backend/tests/test_me.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_me.py -v\",\"acceptanceCriteria\":[\"GET /me расширенный\",\"PATCH /me\",\"conflict 409\",\"sessions с is_current\",\"DELETE all кроме текущей\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 5: Avatar upload/delete (/api/me/avatar)",
+      "status": "completed",
+      "blockedBy": [14],
+      "description": "**Goal:** POST/DELETE /api/me/avatar через Pillow → WebP 256×256, инкремент avatar_version, audit-лог.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/me.py\",\"backend/tests/test_avatar_upload.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_avatar_upload.py -v\",\"acceptanceCriteria\":[\"WebP 256x256\",\"413 при >5MB\",\"400 при не-картинке\",\"DELETE удаляет файл\",\"audit logged\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 6: Admin — schemas + расширенные user-эндпоинты",
+      "status": "completed",
+      "blockedBy": [15],
+      "description": "**Goal:** schemas/admin.py + переписать routers/admin.py (list с пагинацией/фильтрами, get_user, PATCH с ролевыми правилами, soft DELETE).\n\n```json:metadata\n{\"files\":[\"backend/app/schemas/admin.py\",\"backend/app/routers/admin.py\",\"backend/tests/test_admin_users.py\",\"backend/tests/conftest.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_users.py -v\",\"acceptanceCriteria\":[\"list paginated\",\"admin создаёт только user\",\"admin не правит superadmin\",\"admin не правит себя\",\"admin не назначает admin\",\"superadmin не удаляет себя\",\"include_deleted только superadmin\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 7: Admin — reset-password и toggle-active",
+      "status": "completed",
+      "blockedBy": [16],
+      "description": "**Goal:** POST /admin/users/{id}/reset-password (одноразовый пароль + kicked_at), POST /admin/users/{id}/toggle-active.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/tests/test_admin_user_actions.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_user_actions.py -v\",\"acceptanceCriteria\":[\"reset возвращает пароль\",\"admin не reset superadmin\",\"toggle переключает\",\"superadmin не toggle себя\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 8: Admin — сессии (/admin/sessions, kill)",
+      "status": "completed",
+      "blockedBy": [17],
+      "description": "**Goal:** GET /admin/sessions (все), DELETE /admin/sessions/{id} с kicked_at инвалидацией.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_admin_sessions.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_sessions.py -v\",\"acceptanceCriteria\":[\"list всех\",\"kill устанавливает kicked_at\",\"старый токен 401 после kill\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 9: Admin — расширенная статистика /api/admin/stats",
+      "status": "completed",
+      "blockedBy": [18],
+      "description": "**Goal:** Заменить минимальный stats на полный (downloads/conversions/image_ops, storage, top_users, active_sessions, deleted_users).\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_admin_stats.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_stats.py -v\",\"acceptanceCriteria\":[\"все поля spec §6.5\",\"агрегация usage_today\",\"top 5\",\"storage_used_mb\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 10: Admin — system info и storage (psutil, superadmin)",
+      "status": "completed",
+      "blockedBy": [19],
+      "description": "**Goal:** GET /admin/system (CPU/RAM/Disk/uptime/версии) и /admin/storage; psutil в requirements.\n\n```json:metadata\n{\"files\":[\"backend/requirements.txt\",\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_admin_monitoring.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_admin_monitoring.py -v\",\"acceptanceCriteria\":[\"psutil добавлен\",\"admin 403 на /system\",\"superadmin 200 с CPU/RAM\",\"/storage возвращает размеры\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 11: Admin — расширенный аудит-лог + CSV-экспорт",
+      "status": "completed",
+      "blockedBy": [20],
+      "description": "**Goal:** GET /admin/audit-log с фильтрами user_id/action/from/to + GET /admin/audit-log/export.csv.\n\n```json:metadata\n{\"files\":[\"backend/app/routers/admin.py\",\"backend/app/schemas/admin.py\",\"backend/tests/test_audit_log.py\"],\"verifyCommand\":\"cd backend && pytest tests/test_audit_log.py -v\",\"acceptanceCriteria\":[\"фильтр по action\",\"CSV-экспорт работает\",\"items+total\"]}\n```"
+    },
+    {
+      "id": 22,
+      "subject": "Task 12: Frontend — обновление типов",
+      "status": "completed",
+      "blockedBy": [21],
+      "description": "**Goal:** Расширить frontend/src/types/index.ts (User+поля, новые admin/me/audit/system типы).\n\n```json:metadata\n{\"files\":[\"frontend/src/types/index.ts\"],\"verifyCommand\":\"cd frontend && bunx tsc -b --noEmit\",\"acceptanceCriteria\":[\"User расширен\",\"все admin типы\",\"все me типы\",\"tsc проходит\"]}\n```"
+    },
+    {
+      "id": 23,
+      "subject": "Task 13: Frontend — useAuthedImage + AvatarImage + Topbar",
+      "status": "completed",
+      "blockedBy": [22],
+      "description": "**Goal:** Хук авторизованной загрузки картинок, общий компонент аватара с fallback на иконку User. Заменить кружок-с-буквой в Topbar.\n\n```json:metadata\n{\"files\":[\"frontend/src/hooks/useAuthedImage.ts\",\"frontend/src/components/AvatarImage.tsx\",\"frontend/src/components/AvatarImage.module.css\",\"frontend/src/components/Layout/Topbar.tsx\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/ && playwright-cli snapshot\",\"acceptanceCriteria\":[\"useAuthedImage очищает blob URL\",\"AvatarImage с fallback\",\"Topbar использует AvatarImage\"]}\n```"
+    },
+    {
+      "id": 24,
+      "subject": "Task 14: Frontend — HomePage и редиректы",
+      "status": "completed",
+      "blockedBy": [23],
+      "description": "**Goal:** Главная страница с логотипом и плитками. Изменить редиректы login/change-password/* → /.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Home/HomePage.tsx\",\"frontend/src/pages/Home/Home.module.css\",\"frontend/src/App.tsx\",\"frontend/src/pages/Login/LoginPage.tsx\",\"frontend/src/pages/ChangePassword/ChangePasswordPage.tsx\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/ && playwright-cli snapshot\",\"acceptanceCriteria\":[\"/ рендерит HomePage\",\"логотип и плитки\",\"* → /\",\"логин → /\",\"плитки по permissions\"]}\n```"
+    },
+    {
+      "id": 25,
+      "subject": "Task 15: Frontend — Sidebar обновление",
+      "status": "completed",
+      "blockedBy": [24],
+      "description": "**Goal:** Sidebar с пунктом «Главная» сверху и role-based нижним пунктом.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/Layout/Sidebar.tsx\"],\"verifyCommand\":\"playwright-cli snapshot\",\"acceptanceCriteria\":[\"Главная сверху\",\"ЛК для user\",\"Admin Panel для admin/superadmin\"]}\n```"
+    },
+    {
+      "id": 26,
+      "subject": "Task 16: Frontend — polling /auth/me + toast при отзыве",
+      "status": "completed",
+      "blockedBy": [25],
+      "description": "**Goal:** В useAuthProvider — setInterval(15s) на /auth/me с visibility-проверкой. В client.ts — toast при принудительном logout.\n\n```json:metadata\n{\"files\":[\"frontend/src/hooks/useAuthProvider.ts\",\"frontend/src/api/client.ts\"],\"verifyCommand\":\"playwright-cli e2e revoke flow\",\"acceptanceCriteria\":[\"polling 15s\",\"visibility-check\",\"toast при logout\",\"редирект при отзыве\"]}\n```"
+    },
+    {
+      "id": 27,
+      "subject": "Task 17: Frontend — ProfilePage skeleton + ProfileTab + UsageBars",
+      "status": "completed",
+      "blockedBy": [26],
+      "description": "**Goal:** /me с шапкой профиля (аватар через AvatarImage), ProfileTab, прогресс-барами лимитов и временем сброса.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Profile/ProfilePage.tsx\",\"frontend/src/pages/Profile/ProfileTab.tsx\",\"frontend/src/pages/Profile/UsageBars.tsx\",\"frontend/src/pages/Profile/Profile.module.css\",\"frontend/src/App.tsx\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/me && playwright-cli snapshot\",\"acceptanceCriteria\":[\"/me рендерится\",\"шапка профиля\",\"UsageBars\",\"сброс лимитов\"]}\n```"
+    },
+    {
+      "id": 28,
+      "subject": "Task 18: Frontend — SessionsList + ChangeUsernameForm + ChangePasswordForm",
+      "status": "completed",
+      "blockedBy": [27],
+      "description": "**Goal:** Блок активных сессий, inline-редактирование username, модалка смены пароля.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Profile/SessionsList.tsx\",\"frontend/src/pages/Profile/ChangeUsernameForm.tsx\",\"frontend/src/pages/Profile/ChangePasswordForm.tsx\",\"frontend/src/pages/Profile/ProfileTab.tsx\",\"frontend/src/pages/Profile/Profile.module.css\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/me && playwright-cli snapshot\",\"acceptanceCriteria\":[\"сессии с is_current\",\"kill сессии\",\"смена username\",\"смена пароля\"]}\n```"
+    },
+    {
+      "id": 29,
+      "subject": "Task 19: Frontend — AvatarUploader с react-easy-crop",
+      "status": "completed",
+      "blockedBy": [28],
+      "description": "**Goal:** Полноценная загрузка аватара с клиентским кропом до квадрата + кнопка удаления.\n\n```json:metadata\n{\"files\":[\"frontend/package.json\",\"frontend/src/pages/Profile/AvatarUploader.tsx\",\"frontend/src/pages/Profile/ProfileTab.tsx\",\"frontend/src/pages/Profile/Profile.module.css\"],\"verifyCommand\":\"playwright-cli upload flow\",\"acceptanceCriteria\":[\"react-easy-crop добавлен\",\"модалка кропа\",\"upload работает\",\"delete работает\",\"Topbar обновляется\"]}\n```"
+    },
+    {
+      "id": 30,
+      "subject": "Task 20: Frontend — AdminPage с табами + UsersTab",
+      "status": "completed",
+      "blockedBy": [29],
+      "description": "**Goal:** AdminPage с табами через ?tab=, UsersTab с таблицей/фильтрами/пагинацией.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/AdminPage.tsx\",\"frontend/src/pages/Admin/UsersTab.tsx\",\"frontend/src/pages/Admin/Admin.module.css\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/admin && playwright-cli snapshot\",\"acceptanceCriteria\":[\"табы видимы по роли\",\"?tab= синхронизирован\",\"таблица + фильтры + пагинация\",\"аватары через AvatarImage\"]}\n```"
+    },
+    {
+      "id": 31,
+      "subject": "Task 21: Frontend — модалки управления пользователями",
+      "status": "completed",
+      "blockedBy": [30],
+      "description": "**Goal:** CreateUserModal, EditUserModal, ResetPasswordModal, ConfirmDeleteModal + интеграция в AdminPage.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/CreateUserModal.tsx\",\"frontend/src/pages/Admin/EditUserModal.tsx\",\"frontend/src/pages/Admin/ResetPasswordModal.tsx\",\"frontend/src/pages/Admin/ConfirmDeleteModal.tsx\",\"frontend/src/pages/Admin/AdminPage.tsx\"],\"verifyCommand\":\"playwright-cli create user flow\",\"acceptanceCriteria\":[\"create + одноразовый пароль\",\"edit с ролевой проверкой\",\"reset показывает пароль\",\"delete с подтверждением username\"]}\n```"
+    },
+    {
+      "id": 32,
+      "subject": "Task 22: Frontend — AuditLogTab",
+      "status": "completed",
+      "blockedBy": [31],
+      "description": "**Goal:** Таб «Аудит-лог» с таблицей, фильтрами и кнопкой CSV-экспорта.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/AuditLogTab.tsx\",\"frontend/src/pages/Admin/AdminPage.tsx\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/admin?tab=audit && playwright-cli snapshot\",\"acceptanceCriteria\":[\"таблица записей\",\"фильтры action/date\",\"раскрытие details\",\"CSV-экспорт\"]}\n```"
+    },
+    {
+      "id": 33,
+      "subject": "Task 23: Frontend — MonitoringTab (superadmin)",
+      "status": "completed",
+      "blockedBy": [32],
+      "description": "**Goal:** Карточки CPU/RAM/Disk/Uptime, операции сегодня, top-5, версии. Polling 30с.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/MonitoringTab.tsx\",\"frontend/src/pages/Admin/Admin.module.css\",\"frontend/src/pages/Admin/AdminPage.tsx\"],\"verifyCommand\":\"playwright-cli goto http://localhost:5173/admin?tab=monitoring && playwright-cli snapshot\",\"acceptanceCriteria\":[\"карточки CPU/RAM/Disk/Uptime\",\"ops сегодня\",\"top-5\",\"версии\",\"polling 30s\"]}\n```"
+    },
+    {
+      "id": 34,
+      "subject": "Task 24: Финальная UI-верификация через playwright-cli",
+      "status": "completed",
+      "blockedBy": [33],
+      "description": "**Goal:** Сквозные сценарии в живом браузере (login, /me, аватар, админка, мониторинг, polling, kill).\n\n```json:metadata\n{\"files\":[],\"verifyCommand\":\"playwright-cli e2e flows\",\"acceptanceCriteria\":[\"login → /\",\"ЛК работает\",\"upload аватара\",\"админка работает\",\"superadmin видит мониторинг\",\"polling permission revoke срабатывает\",\"kill-session делает logout\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-27T00:00:00Z"
+}

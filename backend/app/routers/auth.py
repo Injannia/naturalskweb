@@ -19,7 +19,7 @@ from app.core.security import (
 from app.core import token_blacklist
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.audit import AuditLog, ActiveSession
+from app.models.audit import ActiveSession
 from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
@@ -28,21 +28,12 @@ from app.schemas.auth import (
     UserResponse,
     MessageResponse,
 )
+from app.utils.audit import log_audit
+from app.utils import audit_actions
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 security_scheme = HTTPBearer()
-
-
-async def _log_audit(db: AsyncSession, user_id: int | None, action: str, request: Request, details: dict | None = None):
-    log = AuditLog(
-        user_id=user_id,
-        action=action,
-        details=details,
-        ip_address=request.client.host if request.client else "",
-        user_agent=request.headers.get("user-agent", "")[:256],
-    )
-    db.add(log)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -51,17 +42,21 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     user = result.scalar_one_or_none()
 
     if not user:
-        await _log_audit(db, None, "login_failed", request, {"reason": "user_not_found", "username": body.username})
+        await log_audit(db, None, audit_actions.LOGIN_FAILED, request, {"reason": "user_not_found", "username": body.username})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
+
+    if user.is_deleted:
+        await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "deleted"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
 
     if not user.is_active:
-        await _log_audit(db, user.id, "login_failed", request, {"reason": "inactive"})
+        await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "inactive"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Аккаунт отключён")
 
     now = datetime.now(timezone.utc)
     if user.locked_until and user.locked_until > now:
         remaining = int((user.locked_until - now).total_seconds())
-        await _log_audit(db, user.id, "login_failed", request, {"reason": "locked"})
+        await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "locked"})
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
             detail=f"Аккаунт заблокирован. Попробуйте через {remaining} секунд.",
@@ -72,9 +67,9 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
         if user.failed_login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
             user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)
             user.failed_login_attempts = 0
-            await _log_audit(db, user.id, "account_locked", request)
+            await log_audit(db, user.id, audit_actions.ACCOUNT_LOCKED, request)
         else:
-            await _log_audit(db, user.id, "login_failed", request, {"reason": "wrong_password"})
+            await log_audit(db, user.id, audit_actions.LOGIN_FAILED, request, {"reason": "wrong_password"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный логин или пароль")
 
     user.failed_login_attempts = 0
@@ -94,7 +89,7 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     )
     db.add(session)
 
-    await _log_audit(db, user.id, "login", request)
+    await log_audit(db, user.id, audit_actions.LOGIN, request)
 
     return TokenResponse(
         access_token=access_token,
@@ -122,8 +117,18 @@ async def refresh(body: RefreshRequest, request: Request, db: AsyncSession = Dep
     user_id = int(payload["sub"])
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.is_deleted:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден или отключён")
+
+    if user.kicked_at:
+        iat = payload.get("iat", 0)
+        kicked_at = user.kicked_at
+        if kicked_at.tzinfo is None:
+            kicked_at = kicked_at.replace(tzinfo=timezone.utc)
+        token_iat = datetime.fromtimestamp(iat, tz=timezone.utc)
+        if token_iat < kicked_at:
+            await db.delete(session)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
     await db.delete(session)
 
@@ -177,7 +182,7 @@ async def logout(
     except Exception:
         pass
 
-    await _log_audit(db, user.id, "logout", request)
+    await log_audit(db, user.id, audit_actions.LOGOUT, request)
     return MessageResponse(message="Вы вышли из системы")
 
 
@@ -200,7 +205,7 @@ async def change_password(
     user.password_hash = hash_password(body.new_password)
     user.must_change_password = False
 
-    await _log_audit(db, user.id, "change_password", request)
+    await log_audit(db, user.id, audit_actions.CHANGE_PASSWORD, request)
     return MessageResponse(message="Пароль успешно изменён")
 
 
