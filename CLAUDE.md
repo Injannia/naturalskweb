@@ -31,7 +31,9 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 
 ### Database
 
-**Миграции через Alembic не применяй** — проект на стадии создания. После изменения моделей: удалить `backend/data/naturalsk.db`, перезапустить uvicorn — БД создаётся заново, и стартовый superadmin кладётся в `backend/data/initial_admin_password.txt`.
+**Миграции через Alembic не применяй** — проект на стадии создания. После изменения моделей: запусти `./scripts/clean.sh` (или удали `backend/data/naturalsk.db`) и перезапусти uvicorn — БД пересоздастся, стартовый superadmin кладётся в `backend/data/initial_admin_password.txt`.
+
+`./scripts/clean.sh` дополнительно сносит uploads, аватары и playwright-cli snapshots; есть `--dry-run` и `--keep-snapshots`.
 
 ## Architecture
 
@@ -43,14 +45,14 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 - `auth` — login/logout/refresh, change-password, /auth/me (фронт пуллит каждые 15 с)
 - `me` — профиль (`/api/me`, PATCH username, sessions CRUD, avatar upload/delete)
 - `users` — `/api/users/{id}/avatar` (раздача WebP-аватаров для авторизованных)
-- `admin` — users CRUD с фильтрами/пагинацией, reset-password, toggle-active, sessions list+kill, stats, system (psutil — superadmin only), storage, audit-log + CSV-экспорт
+- `admin` — это **package** `routers/admin/` со своим APIRouter в `__init__.py` и под-роутерами в `users.py` (CRUD + reset/toggle), `sessions.py`, `monitoring.py` (stats/system/storage), `audit.py`. Helpers вынесены в `_shared.py` (role-проверки) и `_filesystem.py` (size/count). `__init__.py` re-export'ит endpoint-функции, чтобы `from app.routers.admin import list_users, kill_session, ...` продолжал работать в тестах
 - `youtube` / `convert` / `image` — модульные эндпоинты
 
 **Auth-инвариант (важно):**
 - JWT содержит `iat`. У `User` есть `kicked_at` (timezone-aware UTC). При каждом запросе `dependencies.get_current_user` сравнивает `iat` с `kicked_at` и возвращает 401, если токен старее. **Это используется и для kill-session, и для удаления пользователя, и для reset-password — все они ставят `kicked_at = now()`.** SQLite отдаёт naive datetime, поэтому в auth-логике делается `replace(tzinfo=utc)` перед сравнением — не сломайте этот код.
 - `is_deleted` — soft-delete; `get_current_user` отвергает удалённого юзера; `auth.login` для удалённого возвращает тот же generic «invalid credentials» (не утечка существования).
 
-**Role hierarchy:** `user < admin < superadmin`. Helper'ы в `routers/admin.py`:
+**Role hierarchy:** `user < admin < superadmin`. Helper'ы в `routers/admin/_shared.py`:
 - `_is_visible(actor, target)` — soft-deleted виден только superadmin'у; используй в `get_user`/`update_user` для согласованного 404
 - `_can_admin_modify(actor, target)` — admin не правит superadmin/себя; superadmin — любого. Reuse, а не дублируй
 - `require_admin` / `require_superadmin` (в `dependencies.py`) — dependency-инжекторы
@@ -59,12 +61,15 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 
 **Storage paths (`app/core/config.py`):**
 - `DATA_DIR` и `AVATARS_DIR` — абсолютные пути, рассчитанные от `__file__` (НЕ относительные к cwd)
-- `AVATARS_DIR` лежит ВНУТРИ `DATA_DIR` (`data/avatars/`). Эндпоинт `/admin/storage` использует `_dir_size_mb_excluding(DATA_DIR, AVATARS_DIR)` — иначе аватары посчитаются дважды
+- `AVATARS_DIR` лежит ВНУТРИ `DATA_DIR` (`data/avatars/`). `/admin/storage` использует `_dir_size_mb_excluding(DATA_DIR, AVATARS_DIR)` (helper из `routers/admin/_filesystem.py`) — иначе аватары посчитаются дважды
+- `/admin/system` смотрит `psutil.disk_usage(settings.DATA_DIR)` (с fallback на `/`), а не корневой раздел — это даёт реальный «свободно на data-партиции»
 - В тестах оба пути переопределяются через env (`/tmp/naturalsk_test_avatars`)
 
 **Avatar pipeline:** POST `/api/me/avatar` → проверка mime → размер ≤5 МБ → `Image.verify()` → re-open → composite alpha на белый (для прозрачных PNG) → thumbnail 256×256 → WEBP quality 88 → `data/avatars/{user.id}.webp` → инкремент `avatar_version` → audit. Ловим только `(UnidentifiedImageError, OSError, ValueError, SyntaxError)`, не bare `Exception`.
 
-**Active sessions invariant:** все мутации (`logout`, kill-session, delete-user, reset-password) удаляют ActiveSession и/или ставят `kicked_at`. `/admin/sessions` `expires_at > now_naive` (SQL-фильтр, не Python).
+**Active sessions invariant:**
+- Все мутации (`logout`, kill-session, delete-user, reset-password) удаляют ActiveSession и/или ставят `kicked_at`. `/admin/sessions` фильтрует `expires_at > now_naive` в SQL, не в Python.
+- `ActiveSession.user_id` объявлен с `ON DELETE CASCADE`, а в `_set_sqlite_pragma` (в `core/database.py`) включен `PRAGMA foreign_keys=ON` — поэтому хард-удаление `User` каскадно сносит его сессии на уровне схемы. **Тестовая фикстура `db_session` намеренно отключает FK** (некоторые старые тесты вставляют объекты без FK-родителей), поэтому регрессионный тест на каскад поднимает свой engine с `foreign_keys=ON`.
 
 ### Frontend (`frontend/src/`)
 
@@ -114,6 +119,10 @@ async def test_admin_creates_user(db_session):
 `_make_request()` собирает scope `{"type": "http", "headers": [(b"user-agent", b"pytest")], "client": ("127.0.0.1", 0)}`. Это формат, который понимает `log_audit`.
 
 Для проверки 401/403/404 используй `pytest.raises(HTTPException)` и `exc.value.status_code`. Для проверки записи в `audit_log` — `select(AuditLog).where(...)` после вызова и до db_session teardown.
+
+### Lifespan
+
+`backend/app/main.py:lifespan` запускает: `create_tables` → `_create_superadmin` → APScheduler (auto-cleanup) → background-таски прогрева моделей (`_warmup_image_models`: rembg + LaMa) и `_warmup_tool_versions` (subprocess-вызовы `ffmpeg --version` и `yt-dlp --version` идут в кэш `get_tool_versions` сразу при старте, чтобы первый `/admin/system` не платил cold-cost).
 
 ### Production layout
 
