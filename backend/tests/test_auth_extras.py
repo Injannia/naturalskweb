@@ -13,6 +13,8 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.requests import Request
 
+from sqlalchemy import select
+
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password
 from app.dependencies import get_current_user, require_admin, require_superadmin
 from app.models.audit import ActiveSession
@@ -194,6 +196,51 @@ async def test_refresh_blocks_deleted_user(db_session):
     with pytest.raises(HTTPException) as exc_info:
         await auth_refresh(RefreshRequest(refresh_token=refresh_token), request, db_session)
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_does_not_rotate_token(db_session):
+    """Regression: /auth/refresh must NOT rotate the refresh token.
+
+    Rotation caused users to get kicked when the client cancelled mid-flight
+    (page reload, multi-tab, StrictMode double-mount): the server committed
+    the rotation, the client kept the old refresh token, and the next
+    refresh attempt with the old jti hit a deleted session → 401 → forced
+    logout. After the fix, the same refresh token must remain valid for
+    repeated refresh calls and the ActiveSession row must stay put.
+    """
+    user = await _make_user(db_session, username="rotate_user", password="Password1")
+    refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
+    payload = decode_token(refresh_token)
+    sess = ActiveSession(
+        user_id=user.id,
+        token_jti=payload["jti"],
+        ip_address="",
+        user_agent="",
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+    )
+    db_session.add(sess)
+    await db_session.commit()
+
+    request = _make_request()
+
+    first = await auth_refresh(RefreshRequest(refresh_token=refresh_token), request, db_session)
+    assert first.refresh_token == refresh_token, "refresh token must not be rotated"
+    assert first.access_token  # new access token issued
+
+    # The original ActiveSession row must still exist after refresh.
+    sess_row = (
+        await db_session.execute(
+            select(ActiveSession).where(ActiveSession.token_jti == payload["jti"])
+        )
+    ).scalar_one_or_none()
+    assert sess_row is not None, "ActiveSession must survive refresh"
+
+    # And the same refresh token must work a second time — that's the whole
+    # point of dropping rotation: a stale-cancelled refresh on reload is fine.
+    second = await auth_refresh(RefreshRequest(refresh_token=refresh_token), request, db_session)
+    assert second.refresh_token == refresh_token
+    assert second.access_token
 
 
 @pytest.mark.asyncio

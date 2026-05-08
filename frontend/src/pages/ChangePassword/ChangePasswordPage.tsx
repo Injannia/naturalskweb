@@ -4,7 +4,6 @@ import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
 import StarryBackground from '../../components/StarryBackground/StarryBackground'
-import type { User } from '../../types'
 import styles from './ChangePasswordPage.module.css'
 
 function getStrength(password: string): number {
@@ -18,7 +17,7 @@ function getStrength(password: string): number {
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { user, setUser } = useAuth()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -65,8 +64,12 @@ export default function ChangePasswordPage() {
         new_password: newPassword,
       })
 
-      const { data: user } = await api.get<User>('/auth/me')
-      setUser(user)
+      // Optimistic update: don't re-fetch /auth/me — we know the only field
+      // that changed is must_change_password. Re-fetching here introduced a
+      // race with React's batched state/navigation that sometimes left
+      // ProtectedRoute reading must_change_password=true and bouncing the
+      // user back to /change-password.
+      if (user) setUser({ ...user, must_change_password: false })
 
       toast.success('Пароль успешно изменён')
       navigate('/', { replace: true })

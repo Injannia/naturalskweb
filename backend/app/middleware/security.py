@@ -38,9 +38,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Too many requests. Try again later."},
             )
 
-        # Auth-specific rate limit (stricter)
-        is_auth = "/api/auth/" in path
-        if is_auth:
+        # Auth-specific rate limit (stricter): only the brute-forceable
+        # endpoints — login (password guessing) and refresh (refresh-token
+        # abuse). /auth/me, /auth/logout, /auth/change-password require an
+        # already-valid token and were causing 429s in normal use:
+        # /auth/me is polled every 15 s, runs twice on mount under React
+        # StrictMode, and is hit on every page reload, easily exceeding 10/min.
+        is_auth_sensitive = path in ("/api/auth/login", "/api/auth/refresh")
+        if is_auth_sensitive:
             auth_key = f"{client_ip}:auth"
             self.requests[auth_key] = [t for t in self.requests[auth_key] if now - t < self.window]
             if len(self.requests[auth_key]) >= self.auth_limit:

@@ -118,6 +118,12 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(body: RefreshRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    # Refresh tokens are NOT rotated: we issue a new access token but return
+    # the same refresh token. Rotating on every refresh creates a race when
+    # the client cancels mid-flight (page reload, multi-tab, StrictMode
+    # double-mount): the server commits the rotation, the client never sees
+    # the new token, and the next reload's refresh attempt hits a deleted
+    # session and force-logs the user out.
     try:
         payload = decode_token(body.refresh_token)
     except Exception:
@@ -148,24 +154,11 @@ async def refresh(body: RefreshRequest, request: Request, db: AsyncSession = Dep
             await db.delete(session)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
-    await db.delete(session)
-
     access_token = create_access_token({"sub": str(user.id), "role": user.role})
-    new_refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
-
-    new_payload = decode_token(new_refresh_token)
-    new_session = ActiveSession(
-        user_id=user.id,
-        token_jti=new_payload["jti"],
-        ip_address=request.client.host if request.client else "",
-        user_agent=request.headers.get("user-agent", "")[:256],
-        expires_at=datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc),
-    )
-    db.add(new_session)
 
     return TokenResponse(
         access_token=access_token,
-        refresh_token=new_refresh_token,
+        refresh_token=body.refresh_token,
         must_change_password=user.must_change_password,
     )
 
