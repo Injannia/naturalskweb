@@ -1,0 +1,110 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-08-cosmic-redesign.md",
+  "tasks": [
+    {
+      "id": 9,
+      "subject": "Task 1: Дизайн-токены и шрифты",
+      "status": "pending",
+      "description": "**Goal:** Заменить variables.css на палитру Indigo Nebula + подключить Space Grotesk/Inter/JBM + переписать global.css.\n\n```json:metadata\n{\"files\":[\"frontend/src/styles/variables.css\",\"frontend/src/styles/global.css\",\"frontend/index.html\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"variables.css has all palette tokens\",\"Fonts loaded\",\"Focus-ring global\",\"Toastify overrides glass\",\"bun run build passes\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 2: AuroraBackground + StarryBackground v2",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** AuroraBackground (mesh+blobs) + StarryBackground 3 layers.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/AuroraBackground/AuroraBackground.tsx\",\"frontend/src/components/AuroraBackground/AuroraBackground.module.css\",\"frontend/src/components/StarryBackground/StarryBackground.tsx\",\"frontend/src/components/Layout/MainLayout.tsx\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Aurora mesh + 2 blobs\",\"Stars 3 layers\",\"Reduced motion disables animations\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 3: Sidebar + Topbar — стеклянный стиль",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** Glass desktop nav + gradient logo + active pill with glow.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/Layout/Layout.module.css\",\"frontend/src/components/Layout/Sidebar.tsx\",\"frontend/src/components/Layout/Topbar.tsx\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Glass sidebar\",\"Gradient logo\",\"Active pill with glow and dot\",\"Scroll detection on topbar\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 4: BottomNav — мобильная пилюля",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** Floating glass bottom nav for mobile.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/Layout/BottomNav.tsx\",\"frontend/src/components/Layout/Layout.module.css\",\"frontend/src/components/Layout/MainLayout.tsx\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Mobile-only render\",\"Floating glass pill\",\"Active gradient glow\",\"Safe-area aware\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 5: HomePage — Hero + стеклянные плитки",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** Hero with gradient logo + greeting + status + glass tiles grid.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Home/HomePage.tsx\",\"frontend/src/pages/Home/Home.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Hero gradient logo\",\"Greeting + status\",\"Glass tiles grid\",\"Mobile horizontal tiles\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 6: Login + ChangePassword — стеклянная карточка",
+      "status": "pending",
+      "blockedBy": [9, 10],
+      "description": "**Goal:** Glass centered card with full-screen aurora behind.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Login/LoginPage.tsx\",\"frontend/src/pages/Login/LoginPage.module.css\",\"frontend/src/pages/ChangePassword/ChangePasswordPage.tsx\",\"frontend/src/pages/ChangePassword/ChangePasswordPage.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Glass centered card\",\"Gradient logo\",\"Aurora bg visible\",\"Mobile responsive\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 7: UI-kit primitives (Button, Card, Input, DropZone)",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** Reusable Button/Card/Input/DropZone in components/ui/.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/ui/Button.tsx\",\"frontend/src/components/ui/Button.module.css\",\"frontend/src/components/ui/Card.tsx\",\"frontend/src/components/ui/Card.module.css\",\"frontend/src/components/ui/Input.tsx\",\"frontend/src/components/ui/Input.module.css\",\"frontend/src/components/ui/DropZone.tsx\",\"frontend/src/components/ui/DropZone.module.css\",\"frontend/src/components/ui/index.ts\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Button 5 variants\",\"Card 2 variants\",\"Input with error/helper\",\"DropZone animated\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 8: ProfilePage редизайн",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** ProfilePage + 7 subcomponents redesigned with UI-kit.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Profile/Profile.module.css\",\"frontend/src/pages/Profile/ProfilePage.tsx\",\"frontend/src/pages/Profile/ProfileTab.tsx\",\"frontend/src/pages/Profile/AvatarUploader.tsx\",\"frontend/src/pages/Profile/ChangePasswordForm.tsx\",\"frontend/src/pages/Profile/ChangeUsernameForm.tsx\",\"frontend/src/pages/Profile/SessionsList.tsx\",\"frontend/src/pages/Profile/UsageBars.tsx\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"2-col desktop / 1-col mobile\",\"Avatar gradient ring\",\"Glass sections\",\"UI-kit usage\",\"Aurora usage bars\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 9: YouTubePage",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** YouTube module — glass URL form + VideoCard + pill options + aurora progress.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/YouTube/YouTubePage.tsx\",\"frontend/src/pages/YouTube/YouTubePage.module.css\",\"frontend/src/pages/YouTube/VideoCard.tsx\",\"frontend/src/pages/YouTube/VideoCard.module.css\",\"frontend/src/pages/YouTube/PlaylistView.tsx\",\"frontend/src/pages/YouTube/PlaylistView.module.css\",\"frontend/src/pages/YouTube/DownloadOptions.tsx\",\"frontend/src/pages/YouTube/DownloadOptions.module.css\",\"frontend/src/pages/YouTube/DownloadProgress.tsx\",\"frontend/src/pages/YouTube/DownloadProgress.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Glass URL input\",\"VideoCard layout\",\"Pill options\",\"Aurora progress\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 10: ConverterPage",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Converter — UI-kit DropZone + glass file rows + pill settings + aurora progress.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Converter/ConverterPage.tsx\",\"frontend/src/pages/Converter/ConverterPage.module.css\",\"frontend/src/pages/Converter/FileItem.tsx\",\"frontend/src/pages/Converter/FileItem.module.css\",\"frontend/src/pages/Converter/ConvertSettings.tsx\",\"frontend/src/pages/Converter/ConvertSettings.module.css\",\"frontend/src/pages/Converter/ConvertProgress.tsx\",\"frontend/src/pages/Converter/ConvertProgress.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"UI-kit DropZone\",\"Glass file rows\",\"Pill settings\",\"Aurora progress\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 11: ImageProcessorPage",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Image module — glass + UI-kit + aurora compare handle + tests pass.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/ImageProcessor/ImageProcessorPage.tsx\",\"frontend/src/pages/ImageProcessor/ImageProcessorPage.module.css\",\"frontend/src/pages/ImageProcessor/components/ImageUploader.tsx\",\"frontend/src/pages/ImageProcessor/components/ImageUploader.module.css\",\"frontend/src/pages/ImageProcessor/components/ImageCompare.tsx\",\"frontend/src/pages/ImageProcessor/components/ImageCompare.module.css\",\"frontend/src/pages/ImageProcessor/components/ImageProgress.tsx\",\"frontend/src/pages/ImageProcessor/components/ImageProgress.module.css\",\"frontend/src/pages/ImageProcessor/components/Thumbnail.tsx\",\"frontend/src/pages/ImageProcessor/components/Thumbnail.module.css\",\"frontend/src/pages/ImageProcessor/components/BackgroundRemoval.tsx\",\"frontend/src/pages/ImageProcessor/components/BackgroundRemoval.module.css\",\"frontend/src/pages/ImageProcessor/components/WatermarkRemoval.tsx\",\"frontend/src/pages/ImageProcessor/components/WatermarkRemoval.module.css\",\"frontend/src/pages/ImageProcessor/components/MaskCanvas.tsx\",\"frontend/src/pages/ImageProcessor/components/MaskCanvas.module.css\",\"frontend/src/pages/ImageProcessor/components/ImageProgress.test.tsx\",\"frontend/src/pages/ImageProcessor/components/Thumbnail.test.tsx\"],\"verifyCommand\":\"cd frontend && bun run build && bun run test:run\",\"acceptanceCriteria\":[\"UI-kit DropZone\",\"Aurora compare\",\"Aurora progress\",\"Tests pass\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 12: Admin layout + segmented switcher",
+      "status": "pending",
+      "blockedBy": [15],
+      "description": "**Goal:** Admin tabs → glass segmented switcher with role-filter and URL-state.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/AdminPage.tsx\",\"frontend/src/pages/Admin/Admin.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Glass switcher\",\"Role-filtered\",\"URL state preserved\",\"Mobile snap-scroll\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 13: UsersTab + admin модалки",
+      "status": "pending",
+      "blockedBy": [20],
+      "description": "**Goal:** UsersTab data-grid (mobile cards) + 4 modals (Edit/Create/Reset/ConfirmDelete).\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/UsersTab.tsx\",\"frontend/src/pages/Admin/Admin.module.css\",\"frontend/src/pages/Admin/EditUserModal.tsx\",\"frontend/src/pages/Admin/CreateUserModal.tsx\",\"frontend/src/pages/Admin/ResetPasswordModal.tsx\",\"frontend/src/pages/Admin/ConfirmDeleteModal.tsx\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Glass data-grid desktop\",\"Mobile cards\",\"Role chips\",\"4 modals styled\"]}\n```"
+    },
+    {
+      "id": 22,
+      "subject": "Task 14: AuditLogTab + MonitoringTab",
+      "status": "pending",
+      "blockedBy": [20],
+      "description": "**Goal:** Audit list with action chips + Monitoring SVG aurora gauges + system metrics.\n\n```json:metadata\n{\"files\":[\"frontend/src/pages/Admin/AuditLogTab.tsx\",\"frontend/src/pages/Admin/MonitoringTab.tsx\",\"frontend/src/pages/Admin/Admin.module.css\"],\"verifyCommand\":\"cd frontend && bun run build\",\"acceptanceCriteria\":[\"Audit list with chips\",\"SVG aurora gauges\",\"System metrics card\"]}\n```"
+    },
+    {
+      "id": 23,
+      "subject": "Task 15: AvatarImage + финал + полная проверка",
+      "status": "pending",
+      "blockedBy": [16, 17, 18, 19, 21, 22],
+      "description": "**Goal:** AvatarImage accentBorder prop + Topbar/Profile usage + full playwright-cli audit + reduced-motion check.\n\n```json:metadata\n{\"files\":[\"frontend/src/components/AvatarImage.tsx\",\"frontend/src/components/AvatarImage.module.css\",\"frontend/src/components/Layout/Topbar.tsx\"],\"verifyCommand\":\"cd frontend && bun run build && bun run test:run\",\"acceptanceCriteria\":[\"accentBorder prop\",\"Topbar/Profile use it\",\"9 pages snapshot OK\",\"Reduced motion OK\",\"All tests pass\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-08T00:00:00Z"
+}
