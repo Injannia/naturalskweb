@@ -22,18 +22,5 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    role: str
-    is_active: bool
-    must_change_password: bool
-    permissions: dict
-    limits: dict
-    usage_today: dict
-
-    model_config = {"from_attributes": True}
-
-
 class MessageResponse(BaseModel):
     message: str

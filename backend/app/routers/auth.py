@@ -25,9 +25,9 @@ from app.schemas.auth import (
     TokenResponse,
     RefreshRequest,
     ChangePasswordRequest,
-    UserResponse,
     MessageResponse,
 )
+from app.schemas.me import UserMeResponse
 from app.utils.audit import log_audit
 from app.utils import audit_actions
 
@@ -227,6 +227,6 @@ async def change_password(
     return MessageResponse(message="Пароль успешно изменён")
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=UserMeResponse)
 async def me(user: User = Depends(get_current_user)):
     return user

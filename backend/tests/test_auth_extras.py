@@ -194,3 +194,36 @@ async def test_refresh_blocks_deleted_user(db_session):
     with pytest.raises(HTTPException) as exc_info:
         await auth_refresh(RefreshRequest(refresh_token=refresh_token), request, db_session)
     assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_auth_me_response_preserves_avatar_version(db_session):
+    """GET /auth/me must serialize avatar_version (and other Phase 5 fields).
+    The 15s frontend polling does setUser(/auth/me-response). If those fields
+    are stripped by the response_model schema, AvatarImage falls back to the
+    default icon ~15s after upload — user.avatar_version becomes undefined
+    → 0 → cache-busted URL becomes null → blob is revoked.
+    """
+    from app.routers.auth import me as auth_me
+    from app.schemas.me import UserMeResponse
+
+    user = User(
+        username="me_avatar",
+        password_hash=hash_password("Password1"),
+        role="user",
+        is_active=True,
+        must_change_password=False,
+        avatar_version=7,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    result = await auth_me(user=user)
+    # Apply the response_model the route declares — that's what the HTTP
+    # layer serializes and sends to the client.
+    serialized = UserMeResponse.model_validate(result)
+
+    assert serialized.avatar_version == 7
+    assert serialized.id == user.id
+    assert serialized.username == "me_avatar"

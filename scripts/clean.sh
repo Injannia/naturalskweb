@@ -44,9 +44,9 @@ echo "==> Removing SQLite DB and initial password"
 run "rm -f backend/data/naturalsk.db backend/data/naturalsk.db-shm backend/data/naturalsk.db-wal"
 run "rm -f backend/data/initial_admin_password.txt"
 
-echo "==> Removing avatar files (keeping the dir)"
+echo "==> Removing avatar files (keeping the dir and .gitkeep)"
 if [[ -d backend/data/avatars ]]; then
-  run "find backend/data/avatars -type f -delete"
+  run "find backend/data/avatars -type f ! -name .gitkeep -delete"
 fi
 
 echo "==> Removing temporary uploads"
