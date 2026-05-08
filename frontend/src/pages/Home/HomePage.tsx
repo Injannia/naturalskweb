@@ -18,35 +18,39 @@ export default function HomePage() {
   const tiles: Tile[] = []
 
   if (user.permissions.youtube) {
-    tiles.push({ to: '/youtube', icon: Youtube, title: 'YouTube Downloader', description: 'Скачивание видео' })
+    tiles.push({ to: '/youtube', icon: Youtube, title: 'YouTube Downloader', description: 'Скачивание видео и плейлистов' })
   }
   if (user.permissions.converter) {
-    tiles.push({ to: '/converter', icon: FileBox, title: 'File Converter', description: 'Конвертация файлов' })
+    tiles.push({ to: '/converter', icon: FileBox, title: 'File Converter', description: 'Конвертация документов и медиа' })
   }
   if (user.permissions.image) {
-    tiles.push({ to: '/image', icon: ImageIcon, title: 'Image Processor', description: 'Обработка изображений' })
+    tiles.push({ to: '/image', icon: ImageIcon, title: 'Image Processor', description: 'Удаление фона и водяных знаков' })
   }
   if (isAdmin) {
-    tiles.push({ to: '/admin', icon: Shield, title: 'Admin Panel', description: 'Управление и мониторинг' })
+    tiles.push({ to: '/admin', icon: Shield, title: 'Admin Panel', description: 'Управление пользователями и мониторинг' })
   } else {
-    tiles.push({ to: '/me', icon: UserIcon, title: 'Личный кабинет', description: 'Профиль и статистика' })
+    tiles.push({ to: '/me', icon: UserIcon, title: 'Личный кабинет', description: 'Профиль, сессии и безопасность' })
   }
+
+  const totalAvailable = [user.permissions.youtube, user.permissions.converter, user.permissions.image].filter(Boolean).length
+  const status = totalAvailable === 3 ? 'Все модули доступны' : `${totalAvailable} из 3 модулей`
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.logo}>
-        <span className={styles.logoText}>
-          Naturalsk<span className={styles.logoAccent}>Web</span>
-        </span>
-        <p className={styles.subtitle}>Закрытая рабочая среда</p>
+      <div className={styles.hero}>
+        <h1 className={styles.logo}>Naturalsk</h1>
+        <p className={styles.greeting}>Привет, {user.username}</p>
+        <p className={styles.statusLine}>{status}</p>
       </div>
 
       <div className={styles.grid}>
         {tiles.map((t) => (
           <NavLink key={t.to} to={t.to} className={styles.tile}>
-            <t.icon className={styles.tileIcon} />
-            <div className={styles.tileTitle}>{t.title}</div>
-            <div className={styles.tileDesc}>{t.description}</div>
+            <t.icon className={styles.tileIcon} aria-hidden="true" />
+            <div>
+              <div className={styles.tileTitle}>{t.title}</div>
+              <div className={styles.tileDesc}>{t.description}</div>
+            </div>
           </NavLink>
         ))}
       </div>
