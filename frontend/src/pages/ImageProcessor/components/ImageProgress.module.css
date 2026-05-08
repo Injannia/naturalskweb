@@ -69,7 +69,7 @@
 
 .progressFill {
   height: 100%;
-  background: #3b82f6;
+  background: var(--accent-gradient);
   transition: width 0.3s;
 }
 

@@ -10,9 +10,11 @@
 .modeSwitcher {
   display: inline-flex;
   align-self: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
   padding: 4px;
   gap: 2px;
 }
@@ -22,7 +24,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -30,7 +32,7 @@
   font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
@@ -39,9 +41,9 @@
 }
 
 .modeBtnActive {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: var(--glow-sm);
 }
 
 /* ── Image container ── */
@@ -50,7 +52,7 @@
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   user-select: none;
   touch-action: none;
   line-height: 0;
@@ -135,8 +137,8 @@
 .sliderLine {
   flex: 1;
   width: 2px;
-  background: var(--text-primary);
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  background: var(--accent-gradient);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
 }
 
 .sliderHandle {
@@ -145,10 +147,15 @@
   transform: translateY(-50%);
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-full);
-  background: var(--bg-card);
-  border: 2px solid var(--text-primary);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid transparent;
+  background-image: linear-gradient(var(--bg-elevated), var(--bg-elevated)), var(--accent-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: var(--glow-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,14 +164,14 @@
   cursor: ew-resize;
   outline: none;
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .sliderHandle:hover,
 .sliderHandle:focus-visible {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-glow);
+  box-shadow: var(--glow-lg);
+  transform: translateY(-50%) scale(1.05);
 }
 
 /* ── Responsive ── */
