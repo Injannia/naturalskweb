@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
+import AuroraBackground from '../../components/AuroraBackground/AuroraBackground'
 import StarryBackground from '../../components/StarryBackground/StarryBackground'
 import styles from './ChangePasswordPage.module.css'
 
@@ -91,6 +92,7 @@ export default function ChangePasswordPage() {
 
   return (
     <>
+      <AuroraBackground />
       <StarryBackground />
       <div className={styles.container}>
         <div className={styles.card}>

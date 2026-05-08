@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import AuroraBackground from '../AuroraBackground/AuroraBackground'
 import StarryBackground from '../StarryBackground/StarryBackground'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
@@ -22,6 +23,7 @@ export default function MainLayout() {
 
   return (
     <>
+      <AuroraBackground />
       <StarryBackground />
       <div className={styles.layout}>
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

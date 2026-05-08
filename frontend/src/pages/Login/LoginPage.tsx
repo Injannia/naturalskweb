@@ -4,6 +4,7 @@ import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import axios from 'axios'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
+import AuroraBackground from '../../components/AuroraBackground/AuroraBackground'
 import StarryBackground from '../../components/StarryBackground/StarryBackground'
 import type { TokenResponse, User as UserType } from '../../types'
 import styles from './LoginPage.module.css'
@@ -67,6 +68,7 @@ export default function LoginPage() {
 
   return (
     <>
+      <AuroraBackground />
       <StarryBackground />
       <div className={styles.container}>
         <div className={styles.card}>

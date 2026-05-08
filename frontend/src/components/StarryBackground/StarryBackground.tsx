@@ -42,17 +42,26 @@ export default function StarryBackground() {
 
     function initStars() {
       const count = Math.min(
-        400,
-        Math.max(200, Math.floor((canvas!.width * canvas!.height) / 5000)),
+        240,
+        Math.max(120, Math.floor((canvas!.width * canvas!.height) / 8000)),
       )
-      stars = Array.from({ length: count }, () => ({
-        x: Math.random() * canvas!.width,
-        y: Math.random() * canvas!.height,
-        size: Math.random() * 2 + 0.5,
-        opacity: Math.random() * 0.8 + 0.2,
-        twinkleSpeed: Math.random() * 0.02 + 0.005,
-        twinklePhase: Math.random() * Math.PI * 2,
-      }))
+      stars = Array.from({ length: count }, () => {
+        const tier = Math.random()
+        const opacity =
+          tier < 0.5
+            ? Math.random() * 0.2 + 0.2 // dim 0.2-0.4
+            : tier < 0.85
+              ? Math.random() * 0.2 + 0.5 // mid 0.5-0.7
+              : Math.random() * 0.15 + 0.8 // bright 0.8-0.95
+        return {
+          x: Math.random() * canvas!.width,
+          y: Math.random() * canvas!.height,
+          size: Math.random() * 1.6 + 0.4,
+          opacity,
+          twinkleSpeed: Math.random() * 0.015 + 0.004,
+          twinklePhase: Math.random() * Math.PI * 2,
+        }
+      })
     }
 
     function spawnShootingStar() {
@@ -86,10 +95,10 @@ export default function StarryBackground() {
         ctx!.fillStyle = `rgba(255, 255, 255, ${alpha})`
         ctx!.fill()
 
-        if (star.size > 1.5) {
+        if (star.opacity > 0.75) {
           ctx!.beginPath()
           ctx!.arc(star.x, star.y, star.size * 2.5, 0, Math.PI * 2)
-          ctx!.fillStyle = `rgba(110, 123, 255, ${alpha * 0.08})`
+          ctx!.fillStyle = `rgba(168, 85, 247, ${alpha * 0.10})`
           ctx!.fill()
         }
       }
@@ -154,7 +163,7 @@ export default function StarryBackground() {
         left: 0,
         width: '100%',
         height: '100%',
-        zIndex: 0,
+        zIndex: 1,
         pointerEvents: 'none',
         willChange: 'transform',
       }}
