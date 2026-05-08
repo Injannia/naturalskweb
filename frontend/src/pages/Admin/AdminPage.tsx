@@ -58,15 +58,19 @@ export default function AdminPage() {
 
   return (
     <div className={styles.page}>
-      <h1>Admin Panel</h1>
-      <div className={styles.tabs}>
+      <h1 className={styles.title}>Admin Panel</h1>
+      <div className={styles.tabs} role="tablist">
         <button
+          role="tab"
+          aria-selected={tab === 'users'}
           className={`${styles.tab} ${tab === 'users' ? styles.tabActive : ''}`}
           onClick={() => setTab('users')}
         >
           Пользователи
         </button>
         <button
+          role="tab"
+          aria-selected={tab === 'audit'}
           className={`${styles.tab} ${tab === 'audit' ? styles.tabActive : ''}`}
           onClick={() => setTab('audit')}
         >
@@ -74,6 +78,8 @@ export default function AdminPage() {
         </button>
         {isSuperadmin && (
           <button
+            role="tab"
+            aria-selected={tab === 'monitoring'}
             className={`${styles.tab} ${tab === 'monitoring' ? styles.tabActive : ''}`}
             onClick={() => setTab('monitoring')}
           >
@@ -81,6 +87,8 @@ export default function AdminPage() {
           </button>
         )}
         <button
+          role="tab"
+          aria-selected={tab === 'profile'}
           className={`${styles.tab} ${tab === 'profile' ? styles.tabActive : ''}`}
           onClick={() => setTab('profile')}
         >
