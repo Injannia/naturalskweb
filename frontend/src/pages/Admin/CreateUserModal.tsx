@@ -3,8 +3,9 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
+import { Button, Input } from '../../components/ui'
 import type { CreateUserResponse, Role } from '../../types'
-import styles from '../Profile/Profile.module.css'
+import styles from './Admin.module.css'
 
 interface Props {
   onClose: () => void
@@ -66,17 +67,35 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
 
   if (created) {
     return (
-      <div className={styles.modalOverlay} onClick={onClose}>
-        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-          <h3>Пользователь создан</h3>
-          <p>Имя: <strong>{created.username}</strong></p>
-          <p>Пароль (показывается один раз):</p>
-          <code style={{ padding: '0.5rem', background: 'var(--bg-secondary)', borderRadius: 4, display: 'block', wordBreak: 'break-all' }}>
-            {created.password}
-          </code>
-          <button className={styles.btnSecondary} onClick={copyPassword}>Скопировать</button>
+      <div className={styles.modalBackdrop} onClick={onClose}>
+        <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <h3 className={styles.modalTitle}>Пользователь создан</h3>
+          </div>
+          <div className={styles.modalForm}>
+            <p>Имя: <strong>{created.username}</strong></p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
+              Пароль (показывается один раз):
+            </p>
+            <code
+              style={{
+                padding: 'var(--space-3)',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                display: 'block',
+                wordBreak: 'break-all',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
+              {created.password}
+            </code>
+            <Button variant="secondary" size="sm" onClick={copyPassword}>
+              Скопировать
+            </Button>
+          </div>
           <div className={styles.modalActions}>
-            <button className={styles.btnPrimary} onClick={onClose}>Закрыть</button>
+            <Button variant="primary" onClick={onClose}>Закрыть</Button>
           </div>
         </div>
       </div>
@@ -84,67 +103,99 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
   }
 
   return (
-    <div className={styles.modalOverlay} onClick={() => !busy && onClose()}>
+    <div className={styles.modalBackdrop} onClick={() => !busy && onClose()}>
       <div
-        className={styles.modal}
+        className={styles.modalCard}
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 'min(92vw, 520px)' }}
+        style={{ maxWidth: 'min(92vw, 520px)' }}
       >
-        <h3>Создание пользователя</h3>
-        <input
-          className={styles.input}
-          placeholder="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <label>
-          Роль:{' '}
-          <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            <option value="user">user</option>
-            {isSuperadmin && <option value="admin">admin</option>}
-            {isSuperadmin && <option value="superadmin">superadmin</option>}
-          </select>
-        </label>
-        <fieldset>
-          <legend>Права</legend>
-          {(['youtube', 'converter', 'image'] as const).map((k) => (
-            <label key={k} style={{ display: 'block' }}>
-              <input
-                type="checkbox"
-                checked={perms[k]}
-                onChange={(e) => setPerms({ ...perms, [k]: e.target.checked })}
-              />{' '}
-              {k}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset>
-          <legend>Лимиты</legend>
-          {(
-            [
-              ['youtube_daily', 'YouTube'],
-              ['convert_daily', 'Convert'],
-              ['image_daily', 'Image'],
-            ] as const
-          ).map(([k, l]) => (
-            <label key={k} style={{ display: 'block' }}>
-              {l}:{' '}
-              <input
-                type="number"
-                min={0}
-                value={limits[k]}
-                onChange={(e) => setLimits({ ...limits, [k]: Number(e.target.value) })}
-              />
-            </label>
-          ))}
-        </fieldset>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>Создание пользователя</h3>
+        </div>
+
+        <div className={styles.modalForm}>
+          <Input
+            label="Username"
+            placeholder="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoFocus
+          />
+
+          <label>
+            <span style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+              Роль
+            </span>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as Role)}
+              style={{
+                width: '100%',
+                padding: 'var(--space-3) var(--space-4)',
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-ui)',
+                fontSize: 'var(--fs-base)',
+                minHeight: 44,
+              }}
+            >
+              <option value="user">user</option>
+              {isSuperadmin && <option value="admin">admin</option>}
+              {isSuperadmin && <option value="superadmin">superadmin</option>}
+            </select>
+          </label>
+
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
+            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
+              Права
+            </legend>
+            {(['youtube', 'converter', 'image'] as const).map((k) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-1) 0', color: 'var(--text-primary)' }}>
+                <input
+                  type="checkbox"
+                  checked={perms[k]}
+                  onChange={(e) => setPerms({ ...perms, [k]: e.target.checked })}
+                  style={{ accentColor: 'var(--accent-1)' }}
+                />
+                {k}
+              </label>
+            ))}
+          </fieldset>
+
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
+            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
+              Лимиты
+            </legend>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {(
+                [
+                  ['youtube_daily', 'YouTube'],
+                  ['convert_daily', 'Convert'],
+                  ['image_daily', 'Image'],
+                ] as const
+              ).map(([k, l]) => (
+                <Input
+                  key={k}
+                  label={l}
+                  type="number"
+                  min={0}
+                  value={limits[k]}
+                  onChange={(e) => setLimits({ ...limits, [k]: Number(e.target.value) })}
+                />
+              ))}
+            </div>
+          </fieldset>
+        </div>
+
         <div className={styles.modalActions}>
-          <button className={styles.btnSecondary} onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Отмена
-          </button>
-          <button className={styles.btnPrimary} onClick={submit} disabled={busy}>
+          </Button>
+          <Button variant="primary" onClick={submit} disabled={busy} loading={busy}>
             Создать
-          </button>
+          </Button>
         </div>
       </div>
     </div>

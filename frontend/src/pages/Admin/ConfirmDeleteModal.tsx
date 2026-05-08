@@ -2,7 +2,8 @@ import { useState } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
-import styles from '../Profile/Profile.module.css'
+import { Button, Input } from '../../components/ui'
+import styles from './Admin.module.css'
 
 interface Props {
   userId: number
@@ -41,26 +42,33 @@ export default function ConfirmDeleteModal({ userId, username, onClose, onDelete
   }
 
   return (
-    <div className={styles.modalOverlay} onClick={() => !busy && onClose()}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h3>Удалить пользователя {username}?</h3>
-        <p>Введите username для подтверждения:</p>
-        <input
-          className={styles.input}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-        />
+    <div className={styles.modalBackdrop} onClick={() => !busy && onClose()}>
+      <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>Удалить пользователя {username}?</h3>
+        </div>
+        <div className={styles.modalForm}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)' }}>
+            Введите username для подтверждения:
+          </p>
+          <Input
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoFocus
+          />
+        </div>
         <div className={styles.modalActions}>
-          <button className={styles.btnSecondary} onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Отмена
-          </button>
-          <button
-            className={styles.btnDanger}
+          </Button>
+          <Button
+            variant="danger"
             onClick={remove}
             disabled={busy || confirm !== username}
+            loading={busy}
           >
             Удалить
-          </button>
+          </Button>
         </div>
       </div>
     </div>

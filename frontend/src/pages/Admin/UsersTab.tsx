@@ -3,6 +3,7 @@ import { Plus, Eye, Pencil, Key, Power, Trash2 } from 'lucide-react'
 import api from '../../api/client'
 import AvatarImage from '../../components/AvatarImage'
 import { useAuth } from '../../stores/authStore'
+import { Card, Button } from '../../components/ui'
 import type { Role, UserListItem, UserListResponse } from '../../types'
 import styles from './Admin.module.css'
 
@@ -74,7 +75,14 @@ export default function UsersTab({ onCreate, onEdit, onResetPassword, onToggle, 
   const canToggle = canEdit
 
   return (
-    <div>
+    <Card variant="glass">
+      <div className={styles.usersHeader}>
+        <h2>Пользователи ({total})</h2>
+        <Button variant="primary" size="sm" leftIcon={<Plus size={16} />} onClick={onCreate}>
+          Создать
+        </Button>
+      </div>
+
       <div className={styles.toolbar}>
         <input
           placeholder="Поиск по имени"
@@ -99,98 +107,98 @@ export default function UsersTab({ onCreate, onEdit, onResetPassword, onToggle, 
           <option value="inactive">Отключённые</option>
           {isSuperadmin && <option value="deleted">Удалённые</option>}
         </select>
-        <div className={styles.toolbarSpacer} />
-        <button className={styles.iconBtn} onClick={onCreate}>
-          <Plus size={16} /> Создать
-        </button>
       </div>
 
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th></th>
-            <th>Username</th>
-            <th>Роль</th>
-            <th>Статус</th>
-            <th>Создан</th>
-            <th>Последний вход</th>
-            <th>Использование</th>
-            <th>Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((u) => {
-            const st = statusOf(u)
-            return (
-              <tr key={u.id}>
-                <td><AvatarImage userId={u.id} version={u.avatar_version} size={28} /></td>
-                <td>{u.username}</td>
-                <td><span className={`${styles.roleBadge} ${roleClass(u.role)}`}>{u.role}</span></td>
-                <td><span className={`${styles.statusBadge} ${st.cls}`}>{st.label}</span></td>
-                <td>{new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
-                <td>{u.last_login ? new Date(u.last_login).toLocaleDateString('ru-RU') : '—'}</td>
-                <td className={styles.usageCompact}>{compactUsage(u)}</td>
-                <td>
-                  <div className={styles.actions}>
-                    {!canEdit(u) ? (
-                      <button className={styles.iconBtn} onClick={() => onEdit(u.id)} title="Подробно">
-                        <Eye size={14} />
-                      </button>
-                    ) : (
-                      <>
-                        <button className={styles.iconBtn} onClick={() => onEdit(u.id)} title="Редактировать">
-                          <Pencil size={14} />
+      <div style={{ overflowX: 'auto' }}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Username</th>
+              <th>Роль</th>
+              <th>Статус</th>
+              <th>Создан</th>
+              <th>Последний вход</th>
+              <th>Использование</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((u) => {
+              const st = statusOf(u)
+              return (
+                <tr key={u.id}>
+                  <td><AvatarImage userId={u.id} version={u.avatar_version} size={28} /></td>
+                  <td>{u.username}</td>
+                  <td><span className={`${styles.roleBadge} ${roleClass(u.role)}`}>{u.role}</span></td>
+                  <td><span className={`${styles.statusBadge} ${st.cls}`}>{st.label}</span></td>
+                  <td>{new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
+                  <td>{u.last_login ? new Date(u.last_login).toLocaleDateString('ru-RU') : '—'}</td>
+                  <td className={styles.usageCompact}>{compactUsage(u)}</td>
+                  <td>
+                    <div className={styles.actions}>
+                      {!canEdit(u) ? (
+                        <button className={styles.iconBtn} onClick={() => onEdit(u.id)} title="Подробно">
+                          <Eye size={14} />
                         </button>
-                        <button
-                          className={styles.iconBtn}
-                          onClick={() => onResetPassword(u.id)}
-                          disabled={!canResetPassword(u)}
-                          title="Сбросить пароль"
-                        >
-                          <Key size={14} />
+                      ) : (
+                        <>
+                          <button className={styles.iconBtn} onClick={() => onEdit(u.id)} title="Редактировать">
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            className={styles.iconBtn}
+                            onClick={() => onResetPassword(u.id)}
+                            disabled={!canResetPassword(u)}
+                            title="Сбросить пароль"
+                          >
+                            <Key size={14} />
+                          </button>
+                          <button
+                            className={styles.iconBtn}
+                            onClick={() => onToggle(u.id)}
+                            disabled={!canToggle(u)}
+                            title="Включить/Выключить"
+                          >
+                            <Power size={14} />
+                          </button>
+                        </>
+                      )}
+                      {canDelete(u) && (
+                        <button className={styles.iconBtn} onClick={() => onDelete(u.id)} title="Удалить">
+                          <Trash2 size={14} />
                         </button>
-                        <button
-                          className={styles.iconBtn}
-                          onClick={() => onToggle(u.id)}
-                          disabled={!canToggle(u)}
-                          title="Включить/Выключить"
-                        >
-                          <Power size={14} />
-                        </button>
-                      </>
-                    )}
-                    {canDelete(u) && (
-                      <button className={styles.iconBtn} onClick={() => onDelete(u.id)} title="Удалить">
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div className={styles.pagination}>
         <span className={styles.pageInfo}>
           {total === 0 ? '0' : `${offset + 1}–${Math.min(offset + PAGE_SIZE, total)}`} из {total}
         </span>
-        <button
-          className={styles.iconBtn}
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={offset === 0}
           onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
         >
           Назад
-        </button>
-        <button
-          className={styles.iconBtn}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={offset + PAGE_SIZE >= total}
           onClick={() => setOffset(offset + PAGE_SIZE)}
         >
           Вперёд
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }

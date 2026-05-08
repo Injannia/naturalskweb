@@ -2,8 +2,9 @@ import { useState } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
+import { Button } from '../../components/ui'
 import type { ResetPasswordResponse } from '../../types'
-import styles from '../Profile/Profile.module.css'
+import styles from './Admin.module.css'
 
 interface Props {
   userId: number
@@ -47,45 +48,53 @@ export default function ResetPasswordModal({ userId, onClose }: Props) {
   }
 
   return (
-    <div className={styles.modalOverlay} onClick={() => !busy && onClose()}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.modalBackdrop} onClick={() => !busy && onClose()}>
+      <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
         {!result ? (
           <>
-            <h3>Сбросить пароль?</h3>
-            <p>
-              Текущие сессии пользователя будут завершены, ему придётся сменить пароль при
-              следующем входе.
-            </p>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Сбросить пароль?</h3>
+            </div>
+            <div className={styles.modalForm}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--fs-sm)', lineHeight: 1.5 }}>
+                Текущие сессии пользователя будут завершены, ему придётся сменить пароль при
+                следующем входе.
+              </p>
+            </div>
             <div className={styles.modalActions}>
-              <button className={styles.btnSecondary} onClick={onClose} disabled={busy}>
+              <Button variant="ghost" onClick={onClose} disabled={busy}>
                 Отмена
-              </button>
-              <button className={styles.btnPrimary} onClick={reset} disabled={busy}>
+              </Button>
+              <Button variant="primary" onClick={reset} disabled={busy} loading={busy}>
                 Сбросить
-              </button>
+              </Button>
             </div>
           </>
         ) : (
           <>
-            <h3>Новый пароль для {result.username}</h3>
-            <code
-              style={{
-                padding: '0.5rem',
-                background: 'var(--bg-secondary)',
-                borderRadius: 4,
-                display: 'block',
-                wordBreak: 'break-all',
-              }}
-            >
-              {result.password}
-            </code>
-            <button className={styles.btnSecondary} onClick={copyPassword}>
-              Скопировать
-            </button>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Новый пароль для {result.username}</h3>
+            </div>
+            <div className={styles.modalForm}>
+              <code
+                style={{
+                  padding: 'var(--space-3)',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'block',
+                  wordBreak: 'break-all',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                {result.password}
+              </code>
+              <Button variant="secondary" size="sm" onClick={copyPassword}>
+                Скопировать
+              </Button>
+            </div>
             <div className={styles.modalActions}>
-              <button className={styles.btnPrimary} onClick={onClose}>
-                Закрыть
-              </button>
+              <Button variant="primary" onClick={onClose}>Закрыть</Button>
             </div>
           </>
         )}

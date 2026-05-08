@@ -3,8 +3,9 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
+import { Button, Input } from '../../components/ui'
 import type { Role, UpdateUserRequest, UserDetail } from '../../types'
-import styles from '../Profile/Profile.module.css'
+import styles from './Admin.module.css'
 
 interface Props {
   userId: number
@@ -68,92 +69,120 @@ export default function EditUserModal({ userId, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className={styles.modalOverlay} onClick={() => !busy && onClose()}>
+    <div className={styles.modalBackdrop} onClick={() => !busy && onClose()}>
       <div
-        className={styles.modal}
+        className={styles.modalCard}
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 'min(92vw, 520px)' }}
+        style={{ maxWidth: 'min(92vw, 520px)' }}
       >
-        <h3>
-          {editable ? 'Редактирование' : 'Подробно'}: {user.username}
-        </h3>
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>
+            {editable ? 'Редактирование' : 'Подробно'}: {user.username}
+          </h3>
+        </div>
 
-        {editable && actor.role === 'superadmin' && (
-          <label>
-            Роль:{' '}
-            <select
-              value={draft.role}
-              onChange={(e) => setDraft({ ...draft, role: e.target.value as Role })}
-            >
-              <option value="user">user</option>
-              <option value="admin">admin</option>
-              <option value="superadmin">superadmin</option>
-            </select>
-          </label>
-        )}
-        <fieldset>
-          <legend>Права</legend>
-          {(['youtube', 'converter', 'image'] as const).map((k) => (
-            <label key={k} style={{ display: 'block' }}>
+        <div className={styles.modalForm}>
+          {editable && actor.role === 'superadmin' && (
+            <label>
+              <span style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-2)' }}>
+                Роль
+              </span>
+              <select
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value as Role })}
+                style={{
+                  width: '100%',
+                  padding: 'var(--space-3) var(--space-4)',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: 'var(--fs-base)',
+                  minHeight: 44,
+                }}
+              >
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+                <option value="superadmin">superadmin</option>
+              </select>
+            </label>
+          )}
+
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
+            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
+              Права
+            </legend>
+            {(['youtube', 'converter', 'image'] as const).map((k) => (
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-1) 0', color: 'var(--text-primary)' }}>
+                <input
+                  type="checkbox"
+                  disabled={!editable}
+                  checked={!!draft.permissions?.[k]}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      permissions: { ...draft.permissions, [k]: e.target.checked },
+                    })
+                  }
+                  style={{ accentColor: 'var(--accent-1)' }}
+                />
+                {k}
+              </label>
+            ))}
+          </fieldset>
+
+          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
+            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
+              Лимиты
+            </legend>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {(
+                [
+                  ['youtube_daily', 'YouTube'],
+                  ['convert_daily', 'Convert'],
+                  ['image_daily', 'Image'],
+                ] as const
+              ).map(([k, l]) => (
+                <Input
+                  key={k}
+                  label={l}
+                  type="number"
+                  min={0}
+                  disabled={!editable}
+                  value={draft.limits?.[k] ?? 0}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      limits: { ...draft.limits, [k]: Number(e.target.value) },
+                    })
+                  }
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          {editable && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--text-primary)' }}>
               <input
                 type="checkbox"
-                disabled={!editable}
-                checked={!!draft.permissions?.[k]}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    permissions: { ...draft.permissions, [k]: e.target.checked },
-                  })
-                }
-              />{' '}
-              {k}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset>
-          <legend>Лимиты</legend>
-          {(
-            [
-              ['youtube_daily', 'YouTube'],
-              ['convert_daily', 'Convert'],
-              ['image_daily', 'Image'],
-            ] as const
-          ).map(([k, l]) => (
-            <label key={k} style={{ display: 'block' }}>
-              {l}:{' '}
-              <input
-                type="number"
-                min={0}
-                disabled={!editable}
-                value={draft.limits?.[k] ?? 0}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    limits: { ...draft.limits, [k]: Number(e.target.value) },
-                  })
-                }
+                checked={!!draft.is_active}
+                onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })}
+                style={{ accentColor: 'var(--accent-1)' }}
               />
+              Активен
             </label>
-          ))}
-        </fieldset>
-        {editable && (
-          <label>
-            <input
-              type="checkbox"
-              checked={!!draft.is_active}
-              onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })}
-            />{' '}
-            Активен
-          </label>
-        )}
+          )}
+        </div>
+
         <div className={styles.modalActions}>
-          <button className={styles.btnSecondary} onClick={onClose} disabled={busy}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
             Закрыть
-          </button>
+          </Button>
           {editable && (
-            <button className={styles.btnPrimary} onClick={save} disabled={busy}>
+            <Button variant="primary" onClick={save} disabled={busy} loading={busy}>
               Сохранить
-            </button>
+            </Button>
           )}
         </div>
       </div>
