@@ -1,7 +1,8 @@
-/* ── Main Layout ── */
 .layout {
   display: flex;
   min-height: 100vh;
+  position: relative;
+  z-index: 2;
 }
 
 .main {
@@ -22,7 +23,9 @@
   left: 0;
   width: var(--sidebar-width);
   height: 100vh;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -40,14 +43,18 @@
 }
 
 .sidebarLogoText {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--fs-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .sidebarLogoAccent {
-  color: var(--accent);
+  /* Уже идёт градиентом через родителя — оставляем чтобы не ломать разметку. */
 }
 
 .sidebarNav {
@@ -60,6 +67,7 @@
 }
 
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -70,7 +78,7 @@
   font-weight: 500;
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-base);
   border: 1px solid transparent;
 }
 
@@ -80,13 +88,22 @@
 }
 
 .navItemActive {
-  background: var(--accent-glow);
-  color: var(--accent);
-  border-color: rgba(88, 101, 242, 0.2);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-glow);
+  box-shadow: var(--glow-sm);
 }
 
-.navItemActive:hover {
-  color: var(--accent);
+.navItemActive::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 16px;
+  background: var(--accent-gradient);
+  border-radius: var(--radius-pill);
 }
 
 .navIcon {
@@ -106,7 +123,7 @@
   font-size: var(--fs-xs);
   font-family: var(--font-mono);
   color: var(--text-muted);
-  background: var(--bg-card);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 1px 6px;
@@ -127,77 +144,63 @@
   left: var(--sidebar-width);
   right: 0;
   height: var(--topbar-height);
-  background: rgba(18, 18, 26, 0.8);
-  backdrop-filter: blur(12px);
+  background: rgba(11, 11, 20, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-8);
   z-index: 40;
-  transition: left var(--transition-base);
+  transition: left var(--transition-base), background var(--transition-base);
 }
 
-.topbarLeft {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.topbarScrolled {
+  background: rgba(11, 11, 20, 0.85);
 }
 
-.topbarTitle {
-  font-size: var(--fs-base);
-  font-weight: 600;
-  color: var(--text-primary);
-}
+.topbarLeft { display: flex; align-items: center; gap: var(--space-3); }
+.topbarTitle { font-size: var(--fs-base); font-weight: 600; color: var(--text-primary); }
+.topbarRight { display: flex; align-items: center; gap: var(--space-4); }
 
-.topbarRight {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.userInfo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
+.userInfo { display: flex; align-items: center; gap: var(--space-3); }
 
 .userAvatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-full);
-  background: var(--bg-card);
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
+  color: var(--accent-1);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
   font-weight: 600;
+  position: relative;
 }
 
-.userName {
-  font-size: var(--fs-sm);
-  color: var(--text-primary);
-  font-weight: 500;
+.userAvatarAccent {
+  padding: 2px;
+  background: var(--accent-gradient);
+}
+.userAvatarAccent > * {
+  border-radius: var(--radius-pill);
+  background: var(--bg-base);
 }
 
-.userRole {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+.userName { font-size: var(--fs-sm); color: var(--text-primary); font-weight: 500; }
+.userRole { font-size: var(--fs-xs); color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1px; }
 
 .logoutBtn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: none;
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-family: var(--font-ui);
@@ -205,7 +208,6 @@
   cursor: pointer;
   transition: all var(--transition-fast);
 }
-
 .logoutBtn:hover {
   border-color: var(--danger);
   color: var(--danger);
@@ -216,73 +218,46 @@
   display: none;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
   padding: var(--space-2);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  transition: all var(--transition-fast);
 }
+.menuBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
-.menuBtn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-/* ── Mobile overlay ── */
-/* Rendered conditionally — only in DOM when sidebar is open on mobile */
+/* ── Mobile overlay (drawer mode) ── */
 .overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   z-index: 45;
-  /* Fade in when it appears */
   animation: overlayFadeIn var(--transition-base) ease forwards;
 }
 
 @keyframes overlayFadeIn {
   from { opacity: 0; }
-  to   { opacity: 1; }
+  to { opacity: 1; }
 }
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  /* Hide sidebar off-screen by default on mobile */
-  .sidebar {
-    transform: translateX(-100%);
-    /* Drop shadow appears when slid in */
-    box-shadow: none;
-  }
-
-  /* Slide sidebar in when open */
-  .sidebarOpen {
-    transform: translateX(0);
-    box-shadow: var(--shadow-lg), 4px 0 24px rgba(0, 0, 0, 0.8);
-  }
-
-  /* Content takes full width — no sidebar offset */
+  /* На мобиле sidebar полностью скрываем (его заменит BottomNav в Task 4) */
+  .sidebar { display: none; }
   .main {
     margin-left: 0;
     padding: var(--space-4);
+    /* Резерв снизу для bottom-nav */
+    padding-bottom: calc(var(--bottomnav-height) + var(--space-12));
   }
-
-  /* Topbar spans full width on mobile; fully opaque to prevent content showing through */
   .topbar {
     left: 0;
     padding: 0 var(--space-4);
-    background: var(--bg-secondary);
-    backdrop-filter: none;
+    background: rgba(11, 11, 20, 0.85);
   }
-
-  /* Show hamburger button on mobile */
-  .menuBtn {
-    display: flex;
-  }
-
-  /* Collapse user info text to save space */
-  .userName,
-  .userRole {
-    display: none;
-  }
+  .menuBtn { display: none; } /* гамбургер больше не нужен */
+  .userName, .userRole { display: none; }
 }

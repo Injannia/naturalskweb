@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
@@ -12,6 +13,13 @@ interface TopbarProps {
 export default function Topbar({ onMenuClick, sidebarOpen }: TopbarProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   function handleLogout() {
     logout()
@@ -19,7 +27,7 @@ export default function Topbar({ onMenuClick, sidebarOpen }: TopbarProps) {
   }
 
   return (
-    <header className={styles.topbar}>
+    <header className={`${styles.topbar} ${scrolled ? styles.topbarScrolled : ''}`}>
       <div className={styles.topbarLeft}>
         <button
           className={styles.menuBtn}
