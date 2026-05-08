@@ -3,6 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
+import { Button, Input } from '../../components/ui'
 import type { User } from '../../types'
 import styles from './Profile.module.css'
 
@@ -38,25 +39,26 @@ export default function ChangeUsernameForm() {
 
   if (!editing) {
     return (
-      <button className={styles.btnSecondary} onClick={() => setEditing(true)}>
+      <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
         Изменить имя
-      </button>
+      </Button>
     )
   }
 
   return (
     <div className={styles.inlineForm}>
-      <input
-        className={styles.input}
+      <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={busy}
+        autoFocus
       />
-      <button className={styles.btnPrimary} onClick={submit} disabled={busy}>
+      <Button variant="primary" size="sm" onClick={submit} disabled={busy} loading={busy}>
         Сохранить
-      </button>
-      <button
-        className={styles.btnSecondary}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => {
           setEditing(false)
           setValue(user.username)
@@ -64,7 +66,7 @@ export default function ChangeUsernameForm() {
         disabled={busy}
       >
         Отмена
-      </button>
+      </Button>
     </div>
   )
 }

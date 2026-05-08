@@ -7,6 +7,7 @@ import { toast } from 'react-toastify'
 import api from '../../api/client'
 import AvatarImage from '../../components/AvatarImage'
 import { useAuth } from '../../stores/authStore'
+import { Button } from '../../components/ui'
 import type { AvatarUploadResponse } from '../../types'
 import styles from './Profile.module.css'
 
@@ -85,8 +86,6 @@ export default function AvatarUploader() {
       const { data } = await api.post<AvatarUploadResponse>('/me/avatar', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      // Update user state synchronously from the POST response. Avoid the
-      // extra GET /auth/me — the 15s polling could race and overwrite this.
       setUser({ ...user, avatar_version: data.avatar_version })
       setImageSrc(null)
       toast.success('Аватар обновлён')
@@ -101,9 +100,6 @@ export default function AvatarUploader() {
     setBusy(true)
     try {
       await api.delete('/me/avatar')
-      // Bump avatar_version so AvatarImage's URL changes and the next render
-      // refetches; absent file → backend will 404 → fallback icon.
-      // Stays out of the /auth/me polling race.
       setUser({ ...user, avatar_version: (user.avatar_version ?? 0) + 1 })
       toast.success('Аватар удалён')
     } catch (e) {
@@ -114,8 +110,10 @@ export default function AvatarUploader() {
   }
 
   return (
-    <div className={styles.avatarUploader}>
-      <AvatarImage userId={user.id} version={user.avatar_version ?? 0} size={128} />
+    <>
+      <div className={styles.avatarRing}>
+        <AvatarImage userId={user.id} version={user.avatar_version ?? 0} size={160} />
+      </div>
       <div className={styles.avatarActions}>
         <input
           ref={fileRef}
@@ -124,17 +122,18 @@ export default function AvatarUploader() {
           hidden
           onChange={onPick}
         />
-        <button
-          className={styles.btnSecondary}
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
         >
           Загрузить
-        </button>
+        </Button>
         {hasAvatar && (
-          <button className={styles.btnDanger} onClick={remove} disabled={busy}>
+          <Button variant="dangerOutline" size="sm" onClick={remove} disabled={busy}>
             Удалить
-          </button>
+          </Button>
         )}
       </div>
 
@@ -143,11 +142,7 @@ export default function AvatarUploader() {
           className={styles.modalOverlay}
           onClick={() => !busy && setImageSrc(null)}
         >
-          <div
-            className={styles.modal}
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(90vw, 480px)' }}
-          >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h3>Обрезать аватар</h3>
             <div className={styles.cropArea}>
               <Cropper
@@ -172,24 +167,16 @@ export default function AvatarUploader() {
               disabled={busy}
             />
             <div className={styles.modalActions}>
-              <button
-                className={styles.btnSecondary}
-                onClick={() => setImageSrc(null)}
-                disabled={busy}
-              >
+              <Button variant="ghost" onClick={() => setImageSrc(null)} disabled={busy}>
                 Отмена
-              </button>
-              <button
-                className={styles.btnPrimary}
-                onClick={save}
-                disabled={busy || !areaPx}
-              >
+              </Button>
+              <Button variant="primary" onClick={save} disabled={busy || !areaPx} loading={busy}>
                 Сохранить
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

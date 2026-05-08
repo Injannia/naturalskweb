@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
+import { Monitor, Smartphone } from 'lucide-react'
 import api from '../../api/client'
+import { Button } from '../../components/ui'
 import type { MySessionItem } from '../../types'
 import styles from './Profile.module.css'
 
@@ -18,6 +20,10 @@ function shortUA(ua: string): string {
   else if (/iPhone|iPad/.test(ua)) os = 'iOS'
   else if (/Linux/.test(ua)) os = 'Linux'
   return [browser, os].filter(Boolean).join(' · ') || 'Иное'
+}
+
+function isMobileUA(ua: string): boolean {
+  return /Android|iPhone|iPad|iPod|Mobile/.test(ua)
 }
 
 export default function SessionsList() {
@@ -48,41 +54,49 @@ export default function SessionsList() {
     load()
   }
 
-  if (loading) return <div className={styles.section}>Загрузка сессий...</div>
+  if (loading) return <div>Загрузка сессий…</div>
 
   return (
-    <section className={styles.section}>
+    <>
       <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>Активные сессии</h3>
-        <button
-          className={styles.btnSecondary}
+        <h2 className={styles.sectionTitle}>Активные сессии</h2>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={killOthers}
           disabled={sessions.length <= 1}
         >
           Завершить все, кроме текущей
-        </button>
+        </Button>
       </div>
       <div className={styles.sessionList}>
-        {sessions.map((s) => (
-          <div key={s.id} className={styles.sessionItem}>
-            <div className={styles.sessionInfo}>
-              <div className={styles.sessionLine}>
-                <strong>{shortUA(s.user_agent)}</strong>
-                {s.is_current && <span className={styles.badge}>Эта сессия</span>}
+        {sessions.map((s) => {
+          const Icon = isMobileUA(s.user_agent) ? Smartphone : Monitor
+          return (
+            <div
+              key={s.id}
+              className={`${styles.sessionItem} ${s.is_current ? styles.sessionItemCurrent : ''}`}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <div className={styles.sessionInfo}>
+                <div className={styles.sessionLine}>
+                  <strong>{shortUA(s.user_agent)}</strong>
+                  {s.is_current && <span className={styles.badge}>Эта сессия</span>}
+                </div>
+                <div className={styles.sessionMeta}>IP: {s.ip_address || '—'}</div>
+                <div className={styles.sessionMeta}>
+                  Создана: {new Date(s.created_at).toLocaleString('ru-RU')}
+                </div>
               </div>
-              <div className={styles.sessionMeta}>IP: {s.ip_address || '—'}</div>
-              <div className={styles.sessionMeta}>
-                Создана: {new Date(s.created_at).toLocaleString('ru-RU')}
-              </div>
+              {!s.is_current && (
+                <Button variant="dangerOutline" size="sm" onClick={() => killOne(s.id)}>
+                  Завершить
+                </Button>
+              )}
             </div>
-            {!s.is_current && (
-              <button className={styles.btnDanger} onClick={() => killOne(s.id)}>
-                Завершить
-              </button>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
-    </section>
+    </>
   )
 }

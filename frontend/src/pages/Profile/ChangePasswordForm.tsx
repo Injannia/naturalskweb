@@ -2,6 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
+import { Button, Input } from '../../components/ui'
 import styles from './Profile.module.css'
 
 export default function ChangePasswordForm() {
@@ -15,6 +16,11 @@ export default function ChangePasswordForm() {
     setCurrent('')
     setNext('')
     setConfirm('')
+  }
+
+  const close = () => {
+    setOpen(false)
+    reset()
   }
 
   const submit = async () => {
@@ -33,8 +39,7 @@ export default function ChangePasswordForm() {
         new_password: next,
       })
       toast.success('Пароль изменён')
-      setOpen(false)
-      reset()
+      close()
     } catch (e: unknown) {
       const detail =
         axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string'
@@ -48,42 +53,31 @@ export default function ChangePasswordForm() {
 
   if (!open) {
     return (
-      <button className={styles.btnSecondary} onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         Сменить пароль
-      </button>
+      </Button>
     )
   }
 
   return (
-    <div
-      className={styles.modalOverlay}
-      onClick={() => {
-        if (!busy) {
-          setOpen(false)
-          reset()
-        }
-      }}
-    >
+    <div className={styles.modalOverlay} onClick={() => !busy && close()}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h3>Смена пароля</h3>
-        <input
-          className={styles.input}
+        <Input
           type="password"
           placeholder="Текущий пароль"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
           disabled={busy}
         />
-        <input
-          className={styles.input}
+        <Input
           type="password"
           placeholder="Новый пароль (мин. 8)"
           value={next}
           onChange={(e) => setNext(e.target.value)}
           disabled={busy}
         />
-        <input
-          className={styles.input}
+        <Input
           type="password"
           placeholder="Повторите новый"
           value={confirm}
@@ -91,19 +85,12 @@ export default function ChangePasswordForm() {
           disabled={busy}
         />
         <div className={styles.modalActions}>
-          <button
-            className={styles.btnSecondary}
-            onClick={() => {
-              setOpen(false)
-              reset()
-            }}
-            disabled={busy}
-          >
+          <Button variant="ghost" onClick={close} disabled={busy}>
             Отмена
-          </button>
-          <button className={styles.btnPrimary} onClick={submit} disabled={busy}>
+          </Button>
+          <Button variant="primary" onClick={submit} disabled={busy} loading={busy}>
             Сменить
-          </button>
+          </Button>
         </div>
       </div>
     </div>

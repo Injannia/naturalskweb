@@ -36,8 +36,7 @@ function formatTimeUntilReset(resetDateIso: string | undefined): string {
 
 export default function UsageBars({ user }: Props) {
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>Использование сегодня</h3>
+    <>
       <div className={styles.bars}>
         {MODULES.map((m) => {
           const used = user.usage_today[m.key] ?? 0
@@ -64,6 +63,6 @@ export default function UsageBars({ user }: Props) {
       <div className={styles.resetHint}>
         Лимиты обнулятся через {formatTimeUntilReset(user.usage_reset_date)}
       </div>
-    </section>
+    </>
   )
 }
