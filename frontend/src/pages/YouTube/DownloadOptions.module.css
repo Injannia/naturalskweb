@@ -1,6 +1,8 @@
 .container {
   padding: var(--space-5);
-  background: var(--bg-card);
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   display: flex;
@@ -31,10 +33,10 @@
 
 .formatBtn {
   flex: 1;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-secondary);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
@@ -45,21 +47,22 @@
 }
 
 .formatBtn:hover {
-  border-color: var(--border-focus);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
 .formatBtnActive {
-  background: var(--accent-glow);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--glow-sm);
 }
 
 /* ── Quality select ── */
 .qualitySelect {
   width: 100%;
   padding: var(--space-3) var(--space-4);
-  background: var(--bg-input, var(--bg-secondary));
+  background: var(--bg-input, var(--bg-input));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -76,12 +79,12 @@
 }
 
 .qualitySelect:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-1);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .qualitySelect option {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   color: var(--text-primary);
 }
 
@@ -106,8 +109,8 @@
 /* ── Download button ── */
 .downloadBtn {
   flex: 1;
-  padding: var(--space-3) var(--space-4);
-  background: var(--accent);
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent-gradient);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
@@ -115,20 +118,21 @@
   font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  min-height: 44px;
 }
 
 .downloadBtn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
+  filter: saturate(1.1);
+  box-shadow: var(--glow-md);
 }
 
 .downloadBtn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .downloadBtn:disabled {
@@ -157,7 +161,7 @@
 }
 
 .redownloadBtn:hover:not(:disabled) {
-  border-color: var(--border-focus);
+  border-color: var(--border-strong);
   color: var(--text-primary);
   background: var(--bg-hover);
   transform: translateY(-1px);

@@ -11,7 +11,9 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
-  background: var(--bg-card);
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -23,8 +25,10 @@
 }
 
 .playlistTitle {
-  font-size: var(--fs-base);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -81,7 +85,7 @@
 }
 
 .selectedCountAccent {
-  color: var(--accent);
+  color: var(--accent-1);
   font-weight: 600;
 }
 
@@ -100,8 +104,8 @@
 }
 
 .btnText:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-1);
+  color: var(--accent-1);
   background: var(--accent-glow);
 }
 
@@ -136,14 +140,14 @@
     /* Cover top — hides top shadow when scrolled to top */
     linear-gradient(
       to bottom,
-      var(--bg-card) 0%,
+      var(--bg-surface) 0%,
       transparent 100%
     ) top / 100% 32px no-repeat scroll,
 
     /* Cover bottom — hides bottom shadow when scrolled to bottom */
     linear-gradient(
       to top,
-      var(--bg-card) 0%,
+      var(--bg-surface) 0%,
       transparent 100%
     ) bottom / 100% 32px no-repeat scroll,
 
