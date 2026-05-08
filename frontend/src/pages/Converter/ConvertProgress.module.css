@@ -2,7 +2,9 @@
 
 .card {
   padding: var(--space-4) var(--space-5);
-  background: var(--bg-card);
+  background: var(--bg-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   display: flex;
@@ -86,7 +88,7 @@
 
 .targetFormat {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--accent-1);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
 }
@@ -121,8 +123,8 @@
 
 /* uploading shares the accent/blue palette — file is in transit */
 .badgeUploading {
-  background: rgba(88, 101, 242, 0.15);
-  color: var(--accent);
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-1);
 }
 
 /* converting uses warning/amber — processing in progress */
@@ -208,15 +210,15 @@
 .progressBar {
   width: 100%;
   height: 6px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-full);
+  background: var(--accent-gradient);
+  border-radius: var(--radius-pill);
   transition: width 0.4s ease;
 }
 
@@ -324,7 +326,7 @@
 }
 
 .btnDismiss:hover {
-  border-color: var(--border-focus);
+  border-color: var(--border-strong);
   color: var(--text-secondary);
 }
 
@@ -337,7 +339,7 @@
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  color: var(--accent);
+  color: var(--accent-1);
   font-family: var(--font-ui);
   font-size: var(--fs-sm);
   cursor: pointer;
@@ -345,7 +347,7 @@
 }
 
 .btnRestore:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--accent-1);
   background: var(--accent-glow);
 }
 

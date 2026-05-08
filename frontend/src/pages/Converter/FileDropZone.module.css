@@ -8,8 +8,10 @@
   min-height: 180px;
   padding: var(--space-8) var(--space-6);
 
-  background: var(--bg-card);
-  border: 2px dashed var(--border);
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2px dashed var(--border-strong);
   border-radius: var(--radius-lg);
 
   cursor: pointer;
@@ -25,22 +27,22 @@
 
 /* Keyboard focus ring — matches the project's input focus pattern */
 .dropZone:focus-visible {
-  border-color: var(--accent);
+  border-color: var(--accent-1);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 /* Hover: subtle border brightening to invite interaction */
 .dropZone:hover:not(.disabled) {
-  border-color: var(--border-focus);
-  background: color-mix(in srgb, var(--bg-card) 97%, var(--accent) 3%);
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--bg-surface) 97%, var(--accent-1) 3%);
 }
 
 /* Drag-over: accent border + glow — mirrors .dragOver in YouTubePage.module.css */
 .dragOver {
-  border-color: var(--accent);
+  border-color: var(--accent-2);
   border-style: dashed;
-  background: color-mix(in srgb, var(--bg-card) 92%, var(--accent) 8%);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: rgba(168, 85, 247, 0.06);
+  box-shadow: var(--glow-md);
 }
 
 /* Disabled: dimmed, no pointer, no hover effects */
@@ -78,7 +80,7 @@
   width: 56px;
   height: 56px;
   border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-muted);
   margin-bottom: var(--space-2);
@@ -91,8 +93,8 @@
 
 /* Icon brightens during active drag to reinforce the "drop here" affordance */
 .iconWrapActive {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-1);
+  border-color: var(--accent-1);
   background: var(--accent-glow);
 }
 

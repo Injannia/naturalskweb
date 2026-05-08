@@ -5,7 +5,7 @@
 ──────────────────────────────────────────────────────────────────────────── */
 
 .panel {
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-top: none;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
@@ -79,7 +79,7 @@
 }
 
 .select:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-1);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -89,7 +89,7 @@
 }
 
 .select option {
-  background: var(--bg-card);
+  background: var(--bg-surface);
   color: var(--text-primary);
 }
 
@@ -120,7 +120,7 @@
 }
 
 .numberInput:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-1);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -143,7 +143,7 @@
   appearance: none;
   -webkit-appearance: none;
   background: var(--border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   outline: none;
   cursor: pointer;
   transition: background var(--transition-fast);
@@ -153,8 +153,8 @@
      colour is close enough to communicate the control. */
   background: linear-gradient(
     to right,
-    var(--accent) 0%,
-    var(--accent) var(--slider-pct, 85%),
+    var(--accent-1) 0%,
+    var(--accent-1) var(--slider-pct, 85%),
     var(--border) var(--slider-pct, 85%),
     var(--border) 100%
   );
@@ -165,7 +165,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-1);
   border: 2px solid var(--bg-input);
   cursor: pointer;
   box-shadow: 0 0 0 0 var(--accent-glow);
@@ -176,7 +176,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-1);
   border: 2px solid var(--bg-input);
   cursor: pointer;
   transition: box-shadow var(--transition-fast), transform var(--transition-fast);
@@ -211,7 +211,7 @@
   text-align: right;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--accent);
+  color: var(--accent-1);
   flex-shrink: 0;
 }
 
@@ -228,7 +228,7 @@
 .checkbox {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-1);
   cursor: pointer;
   flex-shrink: 0;
 }

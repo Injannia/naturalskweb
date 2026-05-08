@@ -29,9 +29,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xl);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
@@ -39,9 +40,9 @@
   font-size: var(--fs-xs);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   padding: 2px var(--space-3);
   white-space: nowrap;
 }
@@ -79,9 +80,9 @@
 /* Small count pill — same style as YouTubePage .downloadCount */
 .countBadge {
   background: var(--accent-glow);
-  color: var(--accent);
-  border: 1px solid rgba(88, 101, 242, 0.2);
-  border-radius: var(--radius-full);
+  color: var(--accent-1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-pill);
   padding: 0 var(--space-2);
   font-size: var(--fs-xs);
   font-family: var(--font-mono);
@@ -125,7 +126,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-5);
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
@@ -133,16 +134,17 @@
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
+  min-height: 44px;
 }
 
 .convertBtn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
+  filter: saturate(1.1);
+  box-shadow: var(--glow-md);
 }
 
 .convertBtn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .convertBtn:disabled {
