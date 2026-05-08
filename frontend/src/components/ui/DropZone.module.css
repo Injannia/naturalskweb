@@ -1,0 +1,39 @@
+.zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 180px;
+  padding: var(--space-8);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
+}
+.zone:hover { border-color: var(--accent-1); }
+
+.zoneActive {
+  border-color: var(--accent-2);
+  background: rgba(168, 85, 247, 0.06);
+  box-shadow: var(--glow-md);
+  animation: dashDance 1.6s linear infinite;
+}
+
+.zoneIcon { color: var(--accent-1); width: 36px; height: 36px; }
+.hint { color: var(--text-muted); font-size: var(--fs-xs); }
+
+@keyframes dashDance {
+  to { background-position: 16px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoneActive { animation: none; }
+}
