@@ -1,15 +1,31 @@
 .avatar {
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--radius-pill);
   object-fit: cover;
   display: block;
 }
 
 .fallback {
-  border-radius: var(--radius-full, 9999px);
-  background: var(--bg-card, #f5f5f5);
-  border: 1px solid var(--border, #e0e0e0);
-  color: var(--text-secondary, #888);
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Optional gradient ring around the avatar — opt-in via accentBorder prop */
+.accentBorder {
+  padding: 2px;
+  background: var(--accent-gradient);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accentBorder > .avatar,
+.accentBorder > .fallback {
+  background: var(--bg-base);
+  border: none;
 }

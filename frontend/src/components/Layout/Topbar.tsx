@@ -42,7 +42,7 @@ export default function Topbar({ onMenuClick, sidebarOpen }: TopbarProps) {
 
       <div className={styles.topbarRight}>
         <div className={styles.userInfo}>
-          <AvatarImage userId={user?.id} version={user?.avatar_version ?? 0} size={36} />
+          <AvatarImage userId={user?.id} version={user?.avatar_version ?? 0} size={36} accentBorder />
           <div>
             <div className={styles.userName}>{user?.username}</div>
             <div className={styles.userRole}>{user?.role}</div>
