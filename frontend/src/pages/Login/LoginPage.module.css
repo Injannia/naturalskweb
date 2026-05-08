@@ -3,44 +3,54 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  z-index: 1;
   padding: var(--space-4);
+  position: relative;
+  z-index: 2;
 }
 
 .card {
   width: 100%;
-  max-width: 400px;
-  background: rgba(26, 26, 46, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
+  max-width: 420px;
+  padding: var(--space-8);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  padding: var(--space-10);
+  box-shadow: var(--shadow-aurora);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
   animation: slideUp 0.5s ease;
-  box-shadow: var(--shadow-lg);
 }
 
 .logo {
   text-align: center;
-  margin-bottom: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .logoTitle {
-  font-family: var(--font-mono);
+  font-family: var(--font-display);
   font-size: var(--fs-2xl);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1;
 }
 
 .logoAccent {
-  color: var(--accent);
+  /* Naturalsk и Web — оба покрашены градиентом через родителя. */
 }
 
 .logoSub {
   font-size: var(--fs-xs);
-  color: var(--text-secondary);
-  margin-top: var(--space-1);
+  color: var(--text-muted);
   font-family: var(--font-mono);
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -88,23 +98,22 @@
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--fs-base);
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
+  min-height: 44px;
 }
+
+.input::placeholder { color: var(--text-muted); }
 
 .input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
-.input::placeholder {
-  color: var(--text-muted);
+  border-color: var(--accent-1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
 }
 
 .togglePassword {
   position: absolute;
   right: var(--space-3);
-  background: none;
+  background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
@@ -113,14 +122,12 @@
   transition: color var(--transition-fast);
 }
 
-.togglePassword:hover {
-  color: var(--text-secondary);
-}
+.togglePassword:hover { color: var(--text-secondary); }
 
 .submitBtn {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background: var(--accent);
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent-gradient);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
@@ -128,25 +135,24 @@
   font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: filter var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-base);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   margin-top: var(--space-2);
+  min-height: 44px;
 }
 
 .submitBtn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
+  filter: saturate(1.1);
+  box-shadow: var(--glow-md);
 }
 
-.submitBtn:active:not(:disabled) {
-  transform: translateY(0);
-}
+.submitBtn:active:not(:disabled) { transform: scale(0.98); }
 
 .submitBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -160,42 +166,32 @@
 }
 
 .error {
-  background: var(--danger-bg);
-  border: 1px solid rgba(240, 71, 71, 0.3);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
-  color: var(--danger);
-  font-size: var(--fs-sm);
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-size: var(--fs-sm);
   animation: slideDown 0.3s ease;
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 480px) {
+  .card { padding: var(--space-6); }
 }
