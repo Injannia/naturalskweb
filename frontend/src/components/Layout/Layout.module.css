@@ -261,3 +261,92 @@
   .menuBtn { display: none; } /* гамбургер больше не нужен */
   .userName, .userRole { display: none; }
 }
+
+/* ── BottomNav (mobile only) ── */
+.bottomNav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    left: var(--space-3);
+    right: var(--space-3);
+    height: var(--bottomnav-height);
+    padding: var(--space-2);
+    background: rgba(20, 20, 35, 0.7);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid var(--border-strong);
+    border-radius: 28px;
+    box-shadow: var(--shadow-aurora);
+    z-index: 60;
+    align-items: center;
+    justify-content: space-around;
+    gap: var(--space-1);
+  }
+
+  .bottomNavItem {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    height: 100%;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    transition: color var(--transition-fast), background var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bottomNavItem:hover { color: var(--text-secondary); }
+
+  .bottomNavIcon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .bottomNavLabel {
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width var(--transition-base), opacity var(--transition-base);
+  }
+
+  .bottomNavItemActive {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  .bottomNavItemActive .bottomNavLabel {
+    max-width: 120px;
+    opacity: 1;
+  }
+
+  .bottomNavItemActive .bottomNavIcon {
+    color: var(--accent-2);
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+  }
+
+  .bottomNavItemActive::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--accent-gradient);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+}

@@ -4,6 +4,7 @@ import AuroraBackground from '../AuroraBackground/AuroraBackground'
 import StarryBackground from '../StarryBackground/StarryBackground'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import BottomNav from './BottomNav'
 import styles from './Layout.module.css'
 
 export default function MainLayout() {
@@ -34,6 +35,7 @@ export default function MainLayout() {
         <main className={styles.main}>
           <Outlet />
         </main>
+        <BottomNav />
       </div>
     </>
   )
