@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Download } from 'lucide-react'
 import api from '../../api/client'
+import { Card, Button } from '../../components/ui'
 import type { AuditLogItem, AuditLogListResponse } from '../../types'
 import styles from './Admin.module.css'
 
@@ -21,6 +22,15 @@ const ACTIONS = [
   'avatar_updated',
   'avatar_removed',
 ]
+
+function actionChipClass(action: string): string {
+  if (action === 'login_failed' || action === 'user_deleted') return styles.actionChipDanger
+  if (action === 'login' || action === 'logout' || action === 'change_password') return styles.actionChipAuth
+  if (action.startsWith('user_') || action === 'session_killed_by_admin') return styles.actionChipUser
+  if (action === 'user_password_reset' || action === 'user_toggled_active') return styles.actionChipWarning
+  if (action === 'avatar_updated' || action === 'avatar_removed' || action === 'username_changed') return styles.actionChipSuccess
+  return ''
+}
 
 export default function AuditLogTab() {
   const [items, setItems] = useState<AuditLogItem[]>([])
@@ -63,7 +73,7 @@ export default function AuditLogTab() {
   }
 
   return (
-    <div>
+    <Card variant="glass">
       <div className={styles.toolbar}>
         <select
           value={action}
@@ -97,80 +107,88 @@ export default function AuditLogTab() {
           aria-label="По дату"
         />
         <div className={styles.toolbarSpacer} />
-        <button className={styles.iconBtn} onClick={downloadCsv}>
-          <Download size={14} /> CSV
-        </button>
+        <Button variant="secondary" size="sm" leftIcon={<Download size={14} />} onClick={downloadCsv}>
+          CSV
+        </Button>
       </div>
 
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Пользователь</th>
-            <th>Действие</th>
-            <th>IP</th>
-            <th>Детали</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((l) => (
-            <tr key={l.id}>
-              <td>{new Date(l.created_at).toLocaleString('ru-RU')}</td>
-              <td>{l.username ?? '—'}</td>
-              <td>
-                <code>{l.action}</code>
-              </td>
-              <td className={styles.usageCompact}>{l.ip_address || '—'}</td>
-              <td>
-                {l.details ? (
-                  <button
-                    className={styles.iconBtn}
-                    onClick={() => setExpanded(expanded === l.id ? null : l.id)}
-                  >
-                    {expanded === l.id ? '▼' : '▶'}
-                  </button>
-                ) : (
-                  '—'
-                )}
-                {expanded === l.id && l.details && (
-                  <pre
-                    style={{
-                      background: 'var(--bg-secondary, #2a2a2a)',
-                      padding: 8,
-                      borderRadius: 4,
-                      fontSize: 12,
-                      marginTop: 4,
-                      overflow: 'auto',
-                    }}
-                  >
-                    {JSON.stringify(l.details, null, 2)}
-                  </pre>
-                )}
-              </td>
+      <div style={{ overflowX: 'auto' }}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Пользователь</th>
+              <th>Действие</th>
+              <th>IP</th>
+              <th>Детали</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((l) => (
+              <tr key={l.id}>
+                <td>{new Date(l.created_at).toLocaleString('ru-RU')}</td>
+                <td>{l.username ?? '—'}</td>
+                <td>
+                  <span className={`${styles.actionChip} ${actionChipClass(l.action)}`}>
+                    {l.action}
+                  </span>
+                </td>
+                <td className={styles.usageCompact}>{l.ip_address || '—'}</td>
+                <td>
+                  {l.details ? (
+                    <button
+                      className={styles.iconBtn}
+                      onClick={() => setExpanded(expanded === l.id ? null : l.id)}
+                    >
+                      {expanded === l.id ? '▼' : '▶'}
+                    </button>
+                  ) : (
+                    '—'
+                  )}
+                  {expanded === l.id && l.details && (
+                    <pre
+                      style={{
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border)',
+                        padding: 'var(--space-3)',
+                        borderRadius: 'var(--radius-md)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12,
+                        marginTop: 'var(--space-2)',
+                        overflow: 'auto',
+                      }}
+                    >
+                      {JSON.stringify(l.details, null, 2)}
+                    </pre>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <div className={styles.pagination}>
         <span className={styles.pageInfo}>
           {total === 0 ? '0 из 0' : `${offset + 1}–${Math.min(offset + PAGE, total)} из ${total}`}
         </span>
-        <button
-          className={styles.iconBtn}
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={offset === 0}
           onClick={() => setOffset(Math.max(0, offset - PAGE))}
         >
           Назад
-        </button>
-        <button
-          className={styles.iconBtn}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={offset + PAGE >= total}
           onClick={() => setOffset(offset + PAGE)}
         >
           Вперёд
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }
