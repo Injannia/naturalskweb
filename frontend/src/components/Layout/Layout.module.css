@@ -7,6 +7,11 @@
 
 .main {
   flex: 1;
+  /* Flex item must be allowed to shrink below its content's min-content width,
+     otherwise wide/un-wrappable content (tables, long filenames) expands .main
+     past the viewport. Without this, inner min-width:0 / ellipsis chains never
+     get a constrained width to work against. */
+  min-width: 0;
   margin-left: var(--sidebar-width);
   margin-top: var(--topbar-height);
   padding: var(--space-8);
@@ -289,7 +294,9 @@
   }
 
   .bottomNavItem {
-    flex: 1;
+    /* Inactive items shrink to their icon; the active item grows to fit its
+       expanding label (otherwise an equal flex:1 split clips "Главная" → "Гла"). */
+    flex: 0 1 auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -323,6 +330,7 @@
   }
 
   .bottomNavItemActive {
+    flex: 1 1 auto;
     color: var(--text-primary);
     background: var(--bg-hover);
   }
