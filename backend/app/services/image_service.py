@@ -822,6 +822,12 @@ async def get_user_tasks(user_id: int, db: AsyncSession) -> list[ImageTask]:
             ImageTask.user_id == user_id,
             ImageTask.created_at >= cutoff_naive,
             ImageTask.hidden == False,  # noqa: E712
+            # Exclude "pending" — those are uploaded-but-not-started images
+            # (file on disk + DB row, but the user hasn't pressed process yet).
+            # They are editor-local state, not active work; surfacing them here
+            # makes every abandoned upload linger as «Ожидание». Stale-pending
+            # cleanup reaps the orphaned rows/files.
+            ImageTask.status != "pending",
         )
         .order_by(ImageTask.created_at.desc())
     )
