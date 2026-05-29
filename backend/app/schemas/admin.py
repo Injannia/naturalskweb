@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field
+
+from app.schemas._types import UtcDatetime
 
 
 class UserListItemAdmin(BaseModel):
@@ -10,8 +10,8 @@ class UserListItemAdmin(BaseModel):
     is_active: bool
     is_deleted: bool
     avatar_version: int
-    created_at: datetime
-    last_login: datetime | None
+    created_at: UtcDatetime
+    last_login: UtcDatetime | None
     usage_today: dict
     limits: dict
 
@@ -65,8 +65,8 @@ class AdminSessionItem(BaseModel):
     username: str
     ip_address: str
     user_agent: str
-    created_at: datetime
-    expires_at: datetime
+    created_at: UtcDatetime
+    expires_at: UtcDatetime
 
 
 class TopUser(BaseModel):
@@ -115,7 +115,7 @@ class AuditLogItem(BaseModel):
     action: str
     details: dict | None
     ip_address: str
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class AuditLogListResponse(BaseModel):

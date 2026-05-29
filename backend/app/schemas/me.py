@@ -1,6 +1,8 @@
-from datetime import datetime, date
+from datetime import date
 
 from pydantic import BaseModel, Field
+
+from app.schemas._types import UtcDatetime
 
 
 class UserMeResponse(BaseModel):
@@ -14,8 +16,8 @@ class UserMeResponse(BaseModel):
     usage_today: dict
     usage_reset_date: date
     avatar_version: int
-    created_at: datetime
-    last_login: datetime | None
+    created_at: UtcDatetime
+    last_login: UtcDatetime | None
 
     model_config = {"from_attributes": True}
 
@@ -28,8 +30,8 @@ class MySessionItem(BaseModel):
     id: int
     ip_address: str
     user_agent: str
-    created_at: datetime
-    expires_at: datetime
+    created_at: UtcDatetime
+    expires_at: UtcDatetime
     is_current: bool
 
     model_config = {"from_attributes": True}

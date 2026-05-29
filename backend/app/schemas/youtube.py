@@ -1,8 +1,9 @@
 import re
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+from app.schemas._types import UtcDatetime
 
 # ---------------------------------------------------------------------------
 # Allowed quality and format literals
@@ -138,8 +139,8 @@ class DownloadStatus(BaseModel):
     speed: float | None = None  # bytes per second reported by yt-dlp
     eta: int | None = None      # seconds remaining reported by yt-dlp
     # Timestamps for expiry countdown
-    created_at: datetime | None = None
-    completed_at: datetime | None = None
+    created_at: UtcDatetime | None = None
+    completed_at: UtcDatetime | None = None
     # Cache metadata — True when this task was served from a previous download's files
     cached: bool = False
     # Whether the downloaded file still exists on disk
