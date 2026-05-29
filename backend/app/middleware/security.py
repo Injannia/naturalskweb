@@ -6,7 +6,13 @@ from starlette.responses import JSONResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, default_limit: int = 60, auth_limit: int = 10, window: int = 60):
+    # default_limit is intentionally generous: the SPA polls /status every 2 s
+    # per active task (30 req/min each), /auth/me every 15 s, and fans out to
+    # quota + tasks + tasks/history per page — doubled in dev by React
+    # StrictMode. 60/min throttled normal use; 300/min (5 req/s) clears
+    # realistic polling while still capping runaway clients. Brute-forceable
+    # endpoints keep the stricter auth_limit below.
+    def __init__(self, app, default_limit: int = 300, auth_limit: int = 10, window: int = 60):
         super().__init__(app)
         self.default_limit = default_limit
         self.auth_limit = auth_limit
