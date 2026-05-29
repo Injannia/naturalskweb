@@ -19,8 +19,10 @@ import type {
 } from './types'
 import styles from './YouTubePage.module.css'
 
-// Polling interval in ms
-const POLL_INTERVAL = 2000
+// Base poll period (ms) + per-poller random jitter, so concurrent task
+// pollers don't all fire on the same boundary and burst the rate limiter.
+const POLL_INTERVAL = 3000
+const POLL_JITTER = 1000
 
 // Threshold: playlists with this many or more selected videos require confirmation
 const CONFIRMATION_THRESHOLD = 5
@@ -433,7 +435,7 @@ export default function YouTubePage() {
         }
         // Otherwise keep polling — transient network blip
       }
-    }, POLL_INTERVAL)
+    }, POLL_INTERVAL + Math.random() * POLL_JITTER)
 
     pollRefs.current.set(taskId, intervalId)
   }, [])

@@ -18,7 +18,10 @@ import WatermarkRemoval from './components/WatermarkRemoval'
 import ImageProgress from './components/ImageProgress'
 import styles from './ImageProcessorPage.module.css'
 
-const POLL_INTERVAL = 2000
+// Base poll period (ms) + per-poller random jitter, so concurrent task
+// pollers don't all fire on the same boundary and burst the rate limiter.
+const POLL_INTERVAL = 3000
+const POLL_JITTER = 1000
 const TERMINAL_STATUSES = new Set<string>(['ready', 'error'])
 const ACTIVE_STATUSES = new Set<string>(['pending', 'uploading', 'processing'])
 
@@ -106,7 +109,7 @@ export default function ImageProcessorPage() {
           toast.error('Потеряна связь с сервером. Обновите страницу для проверки статуса обработки.')
         }
       }
-    }, POLL_INTERVAL)
+    }, POLL_INTERVAL + Math.random() * POLL_JITTER)
 
     pollRefs.current.set(taskId, intervalId)
   }, [refreshQuota])

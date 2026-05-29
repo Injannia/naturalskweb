@@ -40,8 +40,10 @@ import type {
 } from './types'
 import styles from './ConverterPage.module.css'
 
-// Polling interval in ms — matches YouTubePage
-const POLL_INTERVAL = 2000
+// Base poll period (ms) + per-poller random jitter, so concurrent task
+// pollers don't all fire on the same boundary and burst the rate limiter.
+const POLL_INTERVAL = 3000
+const POLL_JITTER = 1000
 
 // Terminal statuses: polling stops and task can be dismissed
 const TERMINAL_STATUSES = new Set(['ready', 'error', 'cancelled'])
@@ -256,7 +258,7 @@ export default function ConverterPage() {
           toast.error('Потеряна связь с сервером. Обновите страницу для проверки статуса конвертации.')
         }
       }
-    }, POLL_INTERVAL)
+    }, POLL_INTERVAL + Math.random() * POLL_JITTER)
 
     pollRefs.current.set(taskId, intervalId)
   }, [])
