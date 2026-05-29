@@ -24,7 +24,10 @@ def get_tool_versions() -> dict:
         return _cache
     python_version = sys.version.split()[0]
     ffmpeg_line = _run_first_line(["ffmpeg", "-version"])
-    yt_dlp_line = _run_first_line(["yt-dlp", "--version"])
+    # Запускаем yt-dlp как модуль текущего интерпретатора, а не CLI из PATH:
+    # при старте через .venv/bin/uvicorn каталог .venv/bin в PATH не попадает,
+    # хотя пакет yt_dlp установлен в venv (его же использует youtube_service).
+    yt_dlp_line = _run_first_line([sys.executable, "-m", "yt_dlp", "--version"])
 
     if ffmpeg_line != "недоступно":
         parts = ffmpeg_line.split(" ")
