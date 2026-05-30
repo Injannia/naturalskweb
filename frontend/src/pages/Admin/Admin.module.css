@@ -477,6 +477,11 @@
   box-shadow: var(--shadow-aurora);
   padding: var(--space-6);
   animation: modalEnter var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
+  /* Tall forms (e.g. create-user with permissions + limits) can exceed the
+     viewport on short screens — cap height and let the card scroll instead of
+     overflowing off-screen with no way to reach the action buttons. */
+  max-height: calc(100vh - var(--space-8));
+  overflow-y: auto;
 }
 
 .modalHeader {
