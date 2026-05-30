@@ -13,7 +13,6 @@ interface Props {
 }
 
 const DEFAULT_PERMS = { youtube: true, converter: true, image: true }
-const DEFAULT_LIMITS = { youtube_daily: 50, convert_daily: 100, image_daily: 50 }
 const USERNAME_RE = /^[a-zA-Z0-9_]{2,50}$/
 
 function errorMessage(e: unknown, fallback: string): string {
@@ -29,7 +28,6 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
   const [username, setUsername] = useState('')
   const [role, setRole] = useState<Role>('user')
   const [perms, setPerms] = useState({ ...DEFAULT_PERMS })
-  const [limits, setLimits] = useState({ ...DEFAULT_LIMITS })
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<CreateUserResponse | null>(null)
 
@@ -44,7 +42,6 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
         username,
         role,
         permissions: perms,
-        limits,
       })
       setCreated(data)
       onCreated()
@@ -164,29 +161,6 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
             ))}
           </fieldset>
 
-          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
-            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
-              Лимиты
-            </legend>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {(
-                [
-                  ['youtube_daily', 'YouTube'],
-                  ['convert_daily', 'Convert'],
-                  ['image_daily', 'Image'],
-                ] as const
-              ).map(([k, l]) => (
-                <Input
-                  key={k}
-                  label={l}
-                  type="number"
-                  min={0}
-                  value={limits[k]}
-                  onChange={(e) => setLimits({ ...limits, [k]: Number(e.target.value) })}
-                />
-              ))}
-            </div>
-          </fieldset>
         </div>
 
         <div className={styles.modalActions}>

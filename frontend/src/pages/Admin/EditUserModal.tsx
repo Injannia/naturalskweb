@@ -3,7 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
-import { Button, Input } from '../../components/ui'
+import { Button } from '../../components/ui'
 import type { Role, UpdateUserRequest, UserDetail } from '../../types'
 import styles from './Admin.module.css'
 
@@ -42,7 +42,6 @@ export default function EditUserModal({ userId, onClose, onSaved }: Props) {
         setDraft({
           role: data.role as Role,
           permissions: { ...data.permissions },
-          limits: { ...data.limits },
           is_active: data.is_active,
         })
       })
@@ -130,36 +129,6 @@ export default function EditUserModal({ userId, onClose, onSaved }: Props) {
                 {k}
               </label>
             ))}
-          </fieldset>
-
-          <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)' }}>
-            <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
-              Лимиты
-            </legend>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-              {(
-                [
-                  ['youtube_daily', 'YouTube'],
-                  ['convert_daily', 'Convert'],
-                  ['image_daily', 'Image'],
-                ] as const
-              ).map(([k, l]) => (
-                <Input
-                  key={k}
-                  label={l}
-                  type="number"
-                  min={0}
-                  disabled={!editable}
-                  value={draft.limits?.[k] ?? 0}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      limits: { ...draft.limits, [k]: Number(e.target.value) },
-                    })
-                  }
-                />
-              ))}
-            </div>
           </fieldset>
 
           {editable && (

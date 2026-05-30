@@ -355,20 +355,22 @@ async def test_admin_cannot_promote_to_admin(db_session):
 
 
 @pytest.mark.asyncio
-async def test_admin_can_update_user_limits(db_session):
+async def test_admin_update_ignores_limits(db_session):
+    # Limits are fixed defaults and not editable — update_user ignores them.
     admin = await _make_user(db_session, username="admin1", role="admin")
     target = await _make_user(db_session, username="regular")
+    before = dict(target.limits)
 
-    body = UpdateUserRequest(limits={"youtube_daily": 999, "convert_daily": 100, "image_daily": 50})
+    body = UpdateUserRequest(limits={"youtube_daily": 999, "convert_daily": 999, "image_daily": 999})
     result = await update_user(
         user_id=target.id, body=body, request=_make_request(), actor=admin, db=db_session
     )
-    assert result.limits["youtube_daily"] == 999
+    assert result.limits == before
 
     fresh = (
         await db_session.execute(select(User).where(User.id == target.id))
     ).scalar_one()
-    assert fresh.limits["youtube_daily"] == 999
+    assert fresh.limits == before
 
 
 @pytest.mark.asyncio

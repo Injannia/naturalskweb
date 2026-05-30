@@ -34,8 +34,7 @@ def _diff_changes(target: User, body: UpdateUserRequest) -> dict:
         changes["role"] = [target.role, body.role]
     if body.permissions is not None and body.permissions != target.permissions:
         changes["permissions"] = [dict(target.permissions), dict(body.permissions)]
-    if body.limits is not None and body.limits != target.limits:
-        changes["limits"] = [dict(target.limits), dict(body.limits)]
+    # Limits are fixed defaults and not editable — never diffed/logged.
     if body.is_active is not None and body.is_active != target.is_active:
         changes["is_active"] = [target.is_active, body.is_active]
     return changes

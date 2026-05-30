@@ -118,7 +118,9 @@ async def create_user(
         role=body.role,
         must_change_password=True,
         permissions=body.permissions or {"youtube": True, "converter": True, "image": True},
-        limits=body.limits or {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50},
+        # Limits are not customizable — every account gets the server defaults.
+        # (body.limits is ignored; see UpdateUser/_diff_changes too.)
+        limits={"youtube_daily": 50, "convert_daily": 100, "image_daily": 50},
     )
     db.add(user)
     await db.flush()
@@ -175,8 +177,7 @@ async def update_user(
         target.role = body.role
     if body.permissions is not None:
         target.permissions = body.permissions
-    if body.limits is not None:
-        target.limits = body.limits
+    # Limits are fixed defaults and intentionally not editable (see create_user).
     if body.is_active is not None:
         target.is_active = body.is_active
 
