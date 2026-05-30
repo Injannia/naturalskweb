@@ -13,6 +13,7 @@ from app.dependencies import require_admin
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.schemas.admin import AuditLogItem, AuditLogListResponse
+from app.schemas._types import _utc_iso
 
 router = APIRouter()
 
@@ -114,7 +115,7 @@ async def export_audit_log(
         writer.writerow(
             [
                 log.id,
-                log.created_at.isoformat() if log.created_at else "",
+                _utc_iso(log.created_at) if log.created_at else "",
                 log.user_id if log.user_id is not None else "",
                 username or "",
                 log.action,

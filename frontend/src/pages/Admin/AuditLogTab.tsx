@@ -11,6 +11,7 @@ const ACTIONS = [
   'login',
   'logout',
   'login_failed',
+  'account_locked',
   'change_password',
   'user_created',
   'user_updated',
@@ -24,7 +25,7 @@ const ACTIONS = [
 ]
 
 function actionChipClass(action: string): string {
-  if (action === 'login_failed' || action === 'user_deleted') return styles.actionChipDanger
+  if (action === 'login_failed' || action === 'user_deleted' || action === 'account_locked') return styles.actionChipDanger
   if (action === 'login' || action === 'logout' || action === 'change_password') return styles.actionChipAuth
   if (action.startsWith('user_') || action === 'session_killed_by_admin') return styles.actionChipUser
   if (action === 'user_password_reset' || action === 'user_toggled_active') return styles.actionChipWarning
@@ -46,8 +47,12 @@ export default function AuditLogTab() {
     p.set('offset', String(offset))
     p.set('limit', String(PAGE))
     if (action) p.set('action', action)
-    if (from) p.set('from', from)
-    if (to) p.set('to', to)
+    // <input type="datetime-local"> yields a local wall-clock string with no
+    // timezone; the backend compares against UTC timestamps. Convert to UTC
+    // ISO (Z) so the filter bounds mean what the user picked, not a value
+    // shifted by their UTC offset.
+    if (from) p.set('from', new Date(from).toISOString())
+    if (to) p.set('to', new Date(to).toISOString())
     return p.toString()
   }, [offset, action, from, to])
 
@@ -90,6 +95,7 @@ export default function AuditLogTab() {
         </select>
         <input
           type="datetime-local"
+          lang="ru-RU"
           value={from}
           onChange={(e) => {
             setFrom(e.target.value)
@@ -99,6 +105,7 @@ export default function AuditLogTab() {
         />
         <input
           type="datetime-local"
+          lang="ru-RU"
           value={to}
           onChange={(e) => {
             setTo(e.target.value)
@@ -124,6 +131,11 @@ export default function AuditLogTab() {
             </tr>
           </thead>
           <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={5} className={styles.emptyState}>Нет записей</td>
+              </tr>
+            )}
             {items.map((l) => (
               <tr key={l.id}>
                 <td>{new Date(l.created_at).toLocaleString('ru-RU')}</td>

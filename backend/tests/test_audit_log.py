@@ -338,3 +338,26 @@ async def test_csv_export_details_is_valid_json(db_session):
     details_idx = header.index("details")
     parsed = json_mod.loads(data[details_idx])
     assert parsed == {"target_username": "Иван", "n": 1}
+
+
+@pytest.mark.asyncio
+async def test_csv_export_created_at_is_utc_z(db_session):
+    """created_at in the CSV must be UTC ISO-8601 with a 'Z' suffix,
+    consistent with the JSON API after the timestamp fix."""
+    import csv as csv_mod
+    import io as io_mod
+
+    user = await _make_user(db_session, username="alice")
+    db_session.add(
+        AuditLog(
+            user_id=user.id, action="login", details={}, ip_address="1.1.1.1",
+            created_at=datetime(2026, 5, 30, 4, 17, 0),  # naive UTC, as stored
+        )
+    )
+    await db_session.commit()
+
+    response = await _call_export_audit_log(db_session)
+    body = response.body.decode() if isinstance(response.body, bytes) else response.body
+    rows = list(csv_mod.reader(io_mod.StringIO(body)))
+    created_idx = rows[0].index("created_at")
+    assert rows[1][created_idx] == "2026-05-30T04:17:00Z"

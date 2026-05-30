@@ -124,6 +124,11 @@ export default function UsersTab({ onCreate, onEdit, onResetPassword, onToggle, 
             </tr>
           </thead>
           <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={8} className={styles.emptyState}>Пользователи не найдены</td>
+              </tr>
+            )}
             {items.map((u) => {
               const st = statusOf(u)
               return (

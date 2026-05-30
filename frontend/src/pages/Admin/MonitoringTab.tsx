@@ -160,6 +160,11 @@ export default function MonitoringTab() {
             </tr>
           </thead>
           <tbody>
+            {stats.top_users.length === 0 && (
+              <tr>
+                <td colSpan={3} className={styles.emptyState}>Нет активности сегодня</td>
+              </tr>
+            )}
             {stats.top_users.map((u) => (
               <tr key={u.user_id}>
                 <td>

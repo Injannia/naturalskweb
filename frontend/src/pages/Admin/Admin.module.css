@@ -118,6 +118,15 @@
   background: var(--bg-hover);
 }
 
+/* Empty-table placeholder row */
+.emptyState {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--space-6);
+  font-size: var(--fs-sm);
+}
+.emptyState:hover { background: transparent; }
+
 /* ── Role / status chips ── */
 .roleBadge,
 .roleChip {
