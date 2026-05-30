@@ -21,7 +21,11 @@ from app.routers.admin._filesystem import (
 from app.schemas.admin import AdminStats, StorageInfo, SystemInfo, TopUser
 from app.utils.system_info import get_tool_versions
 
-_BOOT_TIME = psutil.boot_time()
+# Application start time, captured when this module is imported during app
+# startup. Uptime reported in /admin/system is the *service* uptime (since the
+# backend process started), NOT the OS boot time — psutil.boot_time() showed
+# machine uptime, which is wrong/misleading after an app restart.
+_APP_START = time.time()
 
 router = APIRouter()
 
@@ -122,7 +126,7 @@ async def get_system_info():
         ram_total_mb=round(vm.total / (1024 * 1024), 1),
         disk_used_gb=round(disk.used / (1024 ** 3), 2),
         disk_total_gb=round(disk.total / (1024 ** 3), 2),
-        uptime_seconds=int(time.time() - _BOOT_TIME),
+        uptime_seconds=int(time.time() - _APP_START),
         python_version=versions.get("python_version", "недоступно"),
         ffmpeg_version=versions.get("ffmpeg_version", "недоступно"),
         yt_dlp_version=versions.get("yt_dlp_version", "недоступно"),
