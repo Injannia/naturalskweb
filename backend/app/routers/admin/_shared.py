@@ -28,13 +28,16 @@ def _can_admin_modify(actor: User, target: User) -> bool:
     return True
 
 
-def _diff_changes(target: User, body: UpdateUserRequest) -> dict:
+def _diff_changes(target: User, body: UpdateUserRequest, *, include_limits: bool = False) -> dict:
     changes: dict = {}
     if body.role is not None and body.role != target.role:
         changes["role"] = [target.role, body.role]
     if body.permissions is not None and body.permissions != target.permissions:
         changes["permissions"] = [dict(target.permissions), dict(body.permissions)]
-    # Limits are fixed defaults and not editable — never diffed/logged.
+    # Limits are editable only by superadmin for regular users (see update_user);
+    # only diff/log them when the caller is actually allowed to apply them.
+    if include_limits and body.limits is not None and body.limits != target.limits:
+        changes["limits"] = [dict(target.limits), dict(body.limits)]
     if body.is_active is not None and body.is_active != target.is_active:
         changes["is_active"] = [target.is_active, body.is_active]
     return changes

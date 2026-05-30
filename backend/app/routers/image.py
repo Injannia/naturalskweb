@@ -42,6 +42,7 @@ from app.schemas.image import (
     RemoveBgRequest,
     RemoveWatermarkRequest,
 )
+from app.core.limits import UNLIMITED, has_unlimited_quota
 from app.services import image_service
 
 logger = logging.getLogger("naturalsk.image")
@@ -68,12 +69,14 @@ def _get_quota(user: User) -> tuple[int, int]:
     reset = user.usage_reset_date
     today = date.today()
     used = user.usage_today.get("image", 0) if reset == today else 0
-    limit = user.limits.get("image_daily", 100)
+    limit = UNLIMITED if has_unlimited_quota(user) else user.limits.get("image_daily", 100)
     return used, limit
 
 
 def _check_daily_limit(user: User) -> None:
     """Raise 429 when the user has exhausted their daily image quota."""
+    if has_unlimited_quota(user):
+        return
     used, limit = _get_quota(user)
     if used >= limit:
         raise HTTPException(

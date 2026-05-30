@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.limits import UNLIMITED, has_unlimited_quota
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.youtube import (
@@ -62,12 +63,14 @@ def _get_quota(user: User) -> tuple[int, int]:
     reset = user.usage_reset_date
     today = date.today()
     used = user.usage_today.get("youtube", 0) if reset == today else 0
-    limit = user.limits.get("youtube_daily", 50)
+    limit = UNLIMITED if has_unlimited_quota(user) else user.limits.get("youtube_daily", 50)
     return used, limit
 
 
 def _check_daily_limit(user: User) -> None:
     """Raise 429 when the user has exhausted their daily download quota."""
+    if has_unlimited_quota(user):
+        return
     used, limit = _get_quota(user)
     if used >= limit:
         raise HTTPException(

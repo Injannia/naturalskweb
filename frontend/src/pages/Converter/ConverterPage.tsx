@@ -666,9 +666,9 @@ export default function ConverterPage() {
           {quota !== null && (
             <span
               className={styles.quotaBadge}
-              aria-label={`Осталось конвертаций: ${Math.max(0, quota.limit - quota.used)} из ${quota.limit}`}
+              aria-label={quota.limit < 0 ? 'Безлимит конвертаций' : `Осталось конвертаций: ${Math.max(0, quota.limit - quota.used)} из ${quota.limit}`}
             >
-              Осталось: {Math.max(0, quota.limit - quota.used)}/{quota.limit}
+              {quota.limit < 0 ? 'Безлимит' : `Осталось: ${Math.max(0, quota.limit - quota.used)}/${quota.limit}`}
             </span>
           )}
         </div>

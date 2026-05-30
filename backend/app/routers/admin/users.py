@@ -93,13 +93,15 @@ async def get_user(
 async def create_user(
     body: CreateUserRequest,
     request: Request,
-    actor: User = Depends(require_admin),
+    actor: User = Depends(require_superadmin),
     db: AsyncSession = Depends(get_db),
 ):
-    if actor.role == "admin" and body.role != "user":
+    # Defense-in-depth alongside the require_superadmin dependency: only a
+    # superadmin may create accounts.
+    if actor.role != "superadmin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin может создавать только пользователей с ролью user",
+            detail="Только суперадмин может создавать пользователей",
         )
 
     existing = (
@@ -118,9 +120,9 @@ async def create_user(
         role=body.role,
         must_change_password=True,
         permissions=body.permissions or {"youtube": True, "converter": True, "image": True},
-        # Limits are not customizable — every account gets the server defaults.
-        # (body.limits is ignored; see UpdateUser/_diff_changes too.)
-        limits={"youtube_daily": 50, "convert_daily": 100, "image_daily": 50},
+        # Only superadmin reaches this endpoint; they may set limits for the new
+        # account (relevant for regular users — admins/superadmins are unlimited).
+        limits=body.limits or {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50},
     )
     db.add(user)
     await db.flush()
@@ -171,13 +173,17 @@ async def update_user(
             detail="Admin может назначать только роль user",
         )
 
-    changes = _diff_changes(target, body)
+    # Limits are editable only by a superadmin, and only for regular users.
+    # (Admins/superadmins are unlimited, so their limits are meaningless.)
+    can_edit_limits = actor.role == "superadmin" and target.role == "user"
+    changes = _diff_changes(target, body, include_limits=can_edit_limits)
 
     if body.role is not None:
         target.role = body.role
     if body.permissions is not None:
         target.permissions = body.permissions
-    # Limits are fixed defaults and intentionally not editable (see create_user).
+    if can_edit_limits and body.limits is not None:
+        target.limits = body.limits
     if body.is_active is not None:
         target.is_active = body.is_active
 

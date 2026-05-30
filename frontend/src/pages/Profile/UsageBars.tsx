@@ -40,14 +40,15 @@ export default function UsageBars({ user }: Props) {
       <div className={styles.bars}>
         {MODULES.map((m) => {
           const used = user.usage_today[m.key] ?? 0
-          const limit = user.limits[m.limitKey] ?? 0
+          // admin/superadmin are unlimited — their stored limits are meaningless.
+          const limit = user.role !== 'user' ? -1 : (user.limits[m.limitKey] ?? 0)
           const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0
           return (
             <div key={m.key} className={styles.barRow}>
               <div className={styles.barLabel}>
                 <span>{m.label}</span>
                 <span className={styles.barCount}>
-                  {used} / {limit}
+                  {used} / {limit < 0 ? '∞' : limit}
                 </span>
               </div>
               <div className={styles.barTrack}>

@@ -250,10 +250,10 @@ async def test_get_user_not_found(db_session):
 
 
 @pytest.mark.asyncio
-async def test_admin_creates_user_role_only(db_session):
-    admin = await _make_user(db_session, username="admin1", role="admin")
+async def test_superadmin_creates_user(db_session):
+    sa = await _make_user(db_session, username="root", role="superadmin")
     body = CreateUserRequest(username="newone", role="user")
-    result = await create_user(body=body, request=_make_request(), actor=admin, db=db_session)
+    result = await create_user(body=body, request=_make_request(), actor=sa, db=db_session)
 
     assert result.username == "newone"
     assert result.role == "user"
@@ -267,9 +267,10 @@ async def test_admin_creates_user_role_only(db_session):
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_create_admin_role(db_session):
+async def test_admin_cannot_create_user(db_session):
+    # Only superadmin may create accounts now.
     admin = await _make_user(db_session, username="admin1", role="admin")
-    body = CreateUserRequest(username="anotheradmin", role="admin")
+    body = CreateUserRequest(username="anyone", role="user")
 
     with pytest.raises(HTTPException) as exc:
         await create_user(body=body, request=_make_request(), actor=admin, db=db_session)
@@ -286,9 +287,9 @@ async def test_superadmin_can_create_admin(db_session):
 
 @pytest.mark.asyncio
 async def test_create_user_writes_audit_log(db_session):
-    admin = await _make_user(db_session, username="admin1", role="admin")
+    sa = await _make_user(db_session, username="root", role="superadmin")
     body = CreateUserRequest(username="newuser", role="user")
-    await create_user(body=body, request=_make_request(), actor=admin, db=db_session)
+    await create_user(body=body, request=_make_request(), actor=sa, db=db_session)
 
     log = (
         await db_session.execute(
@@ -296,18 +297,18 @@ async def test_create_user_writes_audit_log(db_session):
         )
     ).scalars().first()
     assert log is not None
-    assert log.user_id == admin.id
+    assert log.user_id == sa.id
     assert log.details["target_username"] == "newuser"
 
 
 @pytest.mark.asyncio
 async def test_create_user_duplicate_username_returns_409(db_session):
-    admin = await _make_user(db_session, username="admin1", role="admin")
+    sa = await _make_user(db_session, username="root", role="superadmin")
     await _make_user(db_session, username="dup")
 
     body = CreateUserRequest(username="dup", role="user")
     with pytest.raises(HTTPException) as exc:
-        await create_user(body=body, request=_make_request(), actor=admin, db=db_session)
+        await create_user(body=body, request=_make_request(), actor=sa, db=db_session)
     assert exc.value.status_code == 409
 
 

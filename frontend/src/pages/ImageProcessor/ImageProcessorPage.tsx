@@ -275,7 +275,7 @@ export default function ImageProcessorPage() {
           </h1>
           {quota && (
             <span className={styles.quotaBadge}>
-              {quota.used} / {quota.limit} сегодня
+              {quota.limit < 0 ? `${quota.used} / ∞ сегодня` : `${quota.used} / ${quota.limit} сегодня`}
             </span>
           )}
         </div>

@@ -1,9 +1,10 @@
-"""Limits are fixed defaults — not customizable on create or update.
+"""Limit-editing policy.
 
-Previously an admin could not edit their own limits (self-edit is blocked
-at every layer) yet could mint new accounts with arbitrary limits. To
-remove that inconsistency, limits are no longer editable anywhere: every
-account gets the server defaults and update_user ignores any limits field.
+Limits apply only to regular users and may be set/changed only by a
+superadmin:
+  - superadmin → regular user: limits applied (on create and update)
+  - admin actor: cannot change limits (covered in test_admin_users)
+  - target is admin/superadmin: limits ignored (those roles are unlimited)
 """
 import pytest
 from sqlalchemy import select
@@ -14,7 +15,7 @@ from app.models.user import User
 from app.routers.admin import create_user, update_user
 from app.schemas.admin import CreateUserRequest, UpdateUserRequest
 
-DEFAULT_LIMITS = {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50}
+CUSTOM = {"youtube_daily": 7, "convert_daily": 8, "image_daily": 9}
 
 
 def _req() -> Request:
@@ -31,30 +32,39 @@ async def _make_user(db, *, username: str, role: str = "user") -> User:
 
 
 @pytest.mark.asyncio
-async def test_create_user_ignores_custom_limits(db_session):
-    admin = await _make_user(db_session, username="root", role="superadmin")
+async def test_superadmin_create_honors_limits(db_session):
+    sa = await _make_user(db_session, username="root", role="superadmin")
     await create_user(
-        body=CreateUserRequest(
-            username="bob", role="user",
-            limits={"youtube_daily": 99999, "convert_daily": 99999, "image_daily": 99999},
-        ),
-        request=_req(), actor=admin, db=db_session,
+        body=CreateUserRequest(username="bob", role="user", limits=dict(CUSTOM)),
+        request=_req(), actor=sa, db=db_session,
     )
     bob = (await db_session.execute(select(User).where(User.username == "bob"))).scalar_one()
-    assert bob.limits == DEFAULT_LIMITS
+    assert bob.limits == CUSTOM
 
 
 @pytest.mark.asyncio
-async def test_update_user_ignores_limits(db_session):
-    admin = await _make_user(db_session, username="root", role="superadmin")
+async def test_superadmin_can_edit_regular_user_limits(db_session):
+    sa = await _make_user(db_session, username="root", role="superadmin")
     target = await _make_user(db_session, username="bob", role="user")
-    target.limits = dict(DEFAULT_LIMITS)
-    await db_session.commit()
 
     await update_user(
-        user_id=target.id,
-        body=UpdateUserRequest(limits={"youtube_daily": 99999, "convert_daily": 99999, "image_daily": 99999}),
-        request=_req(), actor=admin, db=db_session,
+        user_id=target.id, body=UpdateUserRequest(limits=dict(CUSTOM)),
+        request=_req(), actor=sa, db=db_session,
     )
     await db_session.refresh(target)
-    assert target.limits == DEFAULT_LIMITS
+    assert target.limits == CUSTOM
+
+
+@pytest.mark.asyncio
+async def test_superadmin_cannot_edit_admin_limits(db_session):
+    # Admins are unlimited; their limits field is meaningless and not editable.
+    sa = await _make_user(db_session, username="root", role="superadmin")
+    target = await _make_user(db_session, username="adm", role="admin")
+    before = dict(target.limits)
+
+    await update_user(
+        user_id=target.id, body=UpdateUserRequest(limits=dict(CUSTOM)),
+        request=_req(), actor=sa, db=db_session,
+    )
+    await db_session.refresh(target)
+    assert target.limits == before

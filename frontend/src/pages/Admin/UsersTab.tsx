@@ -24,7 +24,10 @@ function roleClass(role: string): string {
 }
 
 function compactUsage(u: UserListItem): string {
-  return `Y ${u.usage_today.youtube ?? 0}/${u.limits.youtube_daily ?? 0} · C ${u.usage_today.converter ?? 0}/${u.limits.convert_daily ?? 0} · I ${u.usage_today.image ?? 0}/${u.limits.image_daily ?? 0}`
+  // admin/superadmin are unlimited — show ∞ instead of their meaningless limits.
+  const lim = (key: 'youtube_daily' | 'convert_daily' | 'image_daily') =>
+    u.role !== 'user' ? '∞' : (u.limits[key] ?? 0)
+  return `Y ${u.usage_today.youtube ?? 0}/${lim('youtube_daily')} · C ${u.usage_today.converter ?? 0}/${lim('convert_daily')} · I ${u.usage_today.image ?? 0}/${lim('image_daily')}`
 }
 
 interface Props {
@@ -78,9 +81,11 @@ export default function UsersTab({ onCreate, onEdit, onResetPassword, onToggle, 
     <Card variant="glass">
       <div className={styles.usersHeader}>
         <h2>Пользователи ({total})</h2>
-        <Button variant="primary" size="sm" leftIcon={<Plus size={16} />} onClick={onCreate}>
-          Создать
-        </Button>
+        {isSuperadmin && (
+          <Button variant="primary" size="sm" leftIcon={<Plus size={16} />} onClick={onCreate}>
+            Создать
+          </Button>
+        )}
       </div>
 
       <div className={styles.toolbar}>

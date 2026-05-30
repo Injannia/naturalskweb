@@ -914,8 +914,8 @@ export default function YouTubePage() {
           </h1>
           {/* Task 6: quota counter — only shown when data is available */}
           {quota !== null && (
-            <span className={styles.quotaBadge} aria-label={`Осталось загрузок: ${Math.max(0, quota.limit - quota.used)} из ${quota.limit}`}>
-              Осталось загрузок: {Math.max(0, quota.limit - quota.used)}/{quota.limit}
+            <span className={styles.quotaBadge} aria-label={quota.limit < 0 ? 'Безлимит загрузок' : `Осталось загрузок: ${Math.max(0, quota.limit - quota.used)} из ${quota.limit}`}>
+              {quota.limit < 0 ? 'Безлимит загрузок' : `Осталось загрузок: ${Math.max(0, quota.limit - quota.used)}/${quota.limit}`}
             </span>
           )}
         </div>
