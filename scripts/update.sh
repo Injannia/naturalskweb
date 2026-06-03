@@ -37,4 +37,7 @@ log "Пересобираю и перезапускаю стек"
 docker compose build
 docker compose up -d
 
+# Снести dangling-образы прошлых сборок (иначе копятся, ~ГБ каждый).
+docker image prune -f
+
 log "Готово. Логи: docker compose logs -f app"
