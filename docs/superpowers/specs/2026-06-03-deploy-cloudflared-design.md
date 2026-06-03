@@ -75,16 +75,16 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 COPY --from=frontend /fe/dist ./frontend_dist
-# Пред-загрузка ML-моделей в слой образа, чтобы первый запрос их не качал:
-RUN python -c "import rembg; rembg.new_session('u2netp')"  # + LaMa-warmup по факту API
+# ML-модели НЕ пред-загружаем в слой образа — warmup идёт в lifespan на старте
+# (решение: runtime-warmup, чтобы не раздувать образ).
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 - `curl` ставится для healthcheck.
 - Бэкенд должен раздавать статику из `frontend_dist` (проверить/настроить путь раздачи `dist` в `main.py` — он сейчас рассчитан на `frontend/dist` относительно cwd; зафиксировать путь через config или env).
-- Модель-warmup в build-слое опционален; если сильно раздувает образ — оставить только runtime-warmup (он уже есть в lifespan). Решение по факту замера размера образа.
-- **Lockfile**: `frontend/bun.lockb` сейчас в `.gitignore` → на свежем клоне его нет, `--frozen-lockfile` упадёт. На этапе плана выбрать: либо **закоммитить lockfile** (убрать из `.gitignore`, воспроизводимые билды — рекомендуется), либо использовать `bun install` без `--frozen-lockfile`.
+- **ML-warmup — runtime (зафиксировано)**: модели не пекутся в слой образа, warmup остаётся в lifespan на старте. Образ меньше, первый `/image`-запрос ждёт прогрева.
+- **Lockfile — коммитим (зафиксировано)**: убрать `frontend/bun.lockb` из `.gitignore`, закоммитить, билд использует `bun install --frozen-lockfile` (воспроизводимые сборки).
 
 ### Альтернатива (отклонена)
 
@@ -157,12 +157,13 @@ TUNNEL_TOKEN=<tunnel token>
 
 Порядок middleware в `main.py` учесть: GZip снаружи, заголовки до отдачи, rate-limit до тяжёлой обработки.
 
-## Alembic baseline (для прод-режима)
+## Alembic baseline (для прод-режима) — зафиксировано
 
-Сейчас БД пересоздаётся при изменении моделей — это dev-режим. Для прода:
-- Создать **baseline-миграцию** (начальная revision, описывающая текущую схему) либо `alembic stamp head` на чистой БД.
-- `lifespan`/деплой: применять `alembic upgrade head` вместо безусловного `create_tables` (или оставить `create_tables` для пустой БД + миграции поверх — выбрать на этапе плана).
-- Цель: обновления не теряют данные, схема меняется миграциями.
+Сейчас БД пересоздаётся при изменении моделей (dev-режим). Переходим на Alembic:
+- Инициализировать `backend/alembic/` (async-совместимый env.py под `sqlite+aiosqlite`).
+- Создать **baseline-миграцию** — начальная revision, описывающая текущую схему (autogenerate от моделей, проверить на чистой БД).
+- Деплой применяет `alembic upgrade head` (в `update.sh` перед/после rebuild, либо в `lifespan` на старте — выбрать на этапе плана; backup в `update.sh` идёт ДО миграции).
+- Цель: обновления меняют схему миграциями и не теряют данные.
 
 Это отдельная задача внутри релиза — без неё пункт CLAUDE.md «не пересоздавать БД» неполноценен.
 
@@ -192,7 +193,7 @@ TUNNEL_TOKEN=<tunnel token>
 - `backend/app/core/config.py` — путь к статике фронта через env/config, `data/logs` dir
 - `spec/phase-6-security-deploy.md` — полный rewrite
 - `CLAUDE.md` — Database / Production layout / Commands
-- `.gitignore` — `data/backups/`, `data/logs/`, `.env` (проверить)
+- `.gitignore` — добавить `data/backups/`, `data/logs/`; **убрать** `frontend/bun.lockb` (коммитим lockfile); проверить `.env`
 
 ## Критерии готовности
 
