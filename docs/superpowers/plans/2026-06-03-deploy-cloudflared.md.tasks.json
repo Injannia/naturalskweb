@@ -1,0 +1,65 @@
+{
+  "planPath": "docs/superpowers/plans/2026-06-03-deploy-cloudflared.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 0: Backend serves SPA static from frontend_dist",
+      "status": "pending",
+      "description": "Serve built frontend from frontend_dist with SPA fallback to index.html, without shadowing /api/*. Files: backend/app/core/config.py (FRONTEND_DIST_DIR, LOGS_DIR), backend/app/main.py (mount /assets + catch-all after routers), backend/tests/test_static_serving.py. Verify: cd backend && .venv/bin/python -m pytest tests/test_static_serving.py -v"
+    },
+    {
+      "id": 2,
+      "subject": "Task 1: SecurityHeaders + GZip middleware",
+      "status": "pending",
+      "description": "Add SecurityHeadersMiddleware (nosniff, frame DENY, referrer, HSTS, CSP; no X-XSS-Protection) + GZipMiddleware(minimum_size=1000). Files: backend/app/middleware/security.py, backend/app/main.py, backend/tests/test_security_headers.py. Verify: cd backend && .venv/bin/python -m pytest tests/test_security_headers.py -v"
+    },
+    {
+      "id": 3,
+      "subject": "Task 2: Structured JSON logging with rotation",
+      "status": "pending",
+      "description": "JSON logs to data/logs/ rotating 50MB x5, INFO+ stdout, WARNING+ file. Files: backend/app/core/logging_config.py, backend/app/main.py, backend/requirements.txt (python-json-logger). Verify: cd backend && .venv/bin/python -m pytest -q"
+    },
+    {
+      "id": 4,
+      "subject": "Task 3: Alembic baseline migration + entrypoint",
+      "status": "pending",
+      "description": "Alembic manages schema: baseline revision creates current schema, alembic upgrade head in entrypoint, lifespan stops calling create_tables. Files: backend/alembic.ini, backend/alembic/env.py, backend/alembic/versions/0001_baseline.py, scripts/docker-entrypoint.sh, backend/app/main.py. Verify: cd backend && rm -f /tmp/alembic_test.db && DATABASE_URL=sqlite+aiosqlite:////tmp/alembic_test.db .venv/bin/alembic upgrade head"
+    },
+    {
+      "id": 5,
+      "subject": "Task 4: Root multi-stage Dockerfile + dockerignore + lockfile",
+      "status": "pending",
+      "blockedBy": [1, 2, 3, 4],
+      "description": "Root multi-stage Dockerfile (oven/bun build -> python+ffmpeg+libreoffice, entrypoint). Commit bun.lockb. Files: Dockerfile, .dockerignore, .gitignore, frontend/bun.lockb, delete backend/Dockerfile. Verify: docker build -t naturalskweb . && docker run --rm naturalskweb sh -c \"which ffmpeg && which libreoffice && ls frontend_dist/index.html\""
+    },
+    {
+      "id": 6,
+      "subject": "Task 5: docker-compose.yml + .env.example",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "Compose: app (no ports, data/uploads volumes, healthcheck /api/health) + cloudflared (token command, depends_on app healthy). .env.example template. Verify: TUNNEL_TOKEN=x SECRET_KEY=x CORS_ORIGINS=x APP_DOMAIN=x docker compose config >/dev/null && echo OK"
+    },
+    {
+      "id": 7,
+      "subject": "Task 6: install.sh — preflight + CF API + stack up",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "Idempotent installer: preflight host deps, CF API create/reuse tunnel+DNS+ingress, generate .env (preserve SECRET_KEY), compose up. --enable-access optional. Files: scripts/install.sh. Verify: bash -n scripts/install.sh && shellcheck scripts/install.sh && echo SYNTAX_OK"
+    },
+    {
+      "id": 8,
+      "subject": "Task 7: update.sh — backup + pull + rebuild",
+      "status": "pending",
+      "blockedBy": [6],
+      "description": "Updater: git clean guard, pull --ff-only, backup SQLite to data/backups (rotate keep 10) before rebuild, compose build && up. Files: scripts/update.sh. Verify: bash -n scripts/update.sh && shellcheck scripts/update.sh && echo SYNTAX_OK"
+    },
+    {
+      "id": 9,
+      "subject": "Task 8: Rewrite spec/phase-6 + update CLAUDE.md to prod mode",
+      "status": "pending",
+      "blockedBy": [7, 8],
+      "description": "Docs reflect docker+cloudflared deploy + Alembic prod mode + new commands. Files: spec/phase-6-security-deploy.md, CLAUDE.md. Verify: ! rg -iq 'nginx|certbot' spec/phase-6-security-deploy.md && rg -q 'cloudflared' spec/phase-6-security-deploy.md && rg -q 'install.sh' CLAUDE.md && echo DOCS_OK"
+    }
+  ],
+  "lastUpdated": "2026-06-03"
+}
