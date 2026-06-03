@@ -14,7 +14,8 @@ from app.core.config import settings
 from app.core.database import async_session, create_tables
 from app.core.security import hash_password, generate_random_password
 from app.middleware.audit import RequestLoggerMiddleware
-from app.middleware.security import RateLimitMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.models.user import User
 from app.routers import auth, admin, youtube, convert, image, users, me
 
@@ -267,6 +268,8 @@ app.add_middleware(
 )
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestLoggerMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(auth.router)
 app.include_router(admin.router)

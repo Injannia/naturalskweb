@@ -63,3 +63,35 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         self.requests[global_key].append(now)
         return await call_next(request)
+
+
+from starlette.middleware.base import RequestResponseEndpoint  # noqa: E402
+
+CSP_POLICY = (
+    "default-src 'self'; "
+    "img-src 'self' data: https://i.ytimg.com; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "script-src 'self'; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'"
+)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Adds standard security headers to every response.
+
+    X-XSS-Protection is intentionally omitted — deprecated and can introduce
+    XS-Leak vulnerabilities in legacy browsers. CSP covers what it tried to do.
+    """
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+        response.headers["Content-Security-Policy"] = CSP_POLICY
+        return response
