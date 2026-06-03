@@ -1,6 +1,6 @@
 import time
 from collections import defaultdict
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -64,8 +64,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests[global_key].append(now)
         return await call_next(request)
 
-
-from starlette.middleware.base import RequestResponseEndpoint  # noqa: E402
 
 CSP_POLICY = (
     "default-src 'self'; "
