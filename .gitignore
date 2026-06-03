@@ -18,8 +18,9 @@ backend/data/avatars/*
 backend/uploads/
 backend/data/backups/
 backend/data/logs/
-data/backups/
-data/logs/
+# Prod runtime dirs (compose mounts ./data and ./uploads at repo root)
+/data/
+/uploads/
 
 # Frontend
 frontend/node_modules/
