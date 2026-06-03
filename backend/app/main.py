@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -299,6 +299,9 @@ if os.path.isdir(settings.FRONTEND_DIST_DIR):
 
     @app.get("/{full_path:path}")
     async def spa_fallback(full_path: str):
+        # Unknown API routes must 404 as JSON, not fall through to the SPA shell.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
         candidate = os.path.abspath(os.path.join(settings.FRONTEND_DIST_DIR, full_path))
         dist_root = os.path.abspath(settings.FRONTEND_DIST_DIR)
         # Containment: reject anything that escapes the dist tree (path traversal)

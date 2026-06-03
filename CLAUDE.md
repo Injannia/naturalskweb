@@ -20,6 +20,7 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 
 ### Backend (`/backend`)
 ```bash
+.venv/bin/alembic upgrade head            # применить миграции (создаёт/обновляет БД)
 .venv/bin/uvicorn app.main:app --reload   # FastAPI на :8000
 .venv/bin/python -m pytest -q             # Все тесты (~150 шт.)
 .venv/bin/python -m pytest tests/test_admin_users.py -v   # Один файл
@@ -46,7 +47,7 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 
 `./scripts/clean.sh` — ТОЛЬКО для локальной разработки (сносит dev-БД, uploads,
 аватары, camoufox-cli snapshots; есть `--dry-run` и `--keep-snapshots`). На проде
-не запускать. Стартовый superadmin кладётся в `backend/data/initial_admin_password.txt`.
+не запускать. Стартовый superadmin кладётся в `backend/data/initial_admin_password.txt`. После `clean.sh` подними БД заново: `cd backend && .venv/bin/alembic upgrade head`.
 
 ## Architecture
 

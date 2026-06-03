@@ -52,3 +52,8 @@ def test_path_traversal_blocked(client_with_dist, tmp_path):
     secret.write_text("topsecret")
     resp = client_with_dist.get("/%2e%2e/secret.txt")
     assert "topsecret" not in resp.text
+
+
+def test_unknown_api_path_returns_404(client_with_dist):
+    resp = client_with_dist.get("/api/does-not-exist")
+    assert resp.status_code == 404
