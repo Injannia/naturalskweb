@@ -19,11 +19,9 @@ from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddlewa
 from app.models.user import User
 from app.routers import auth, admin, youtube, convert, image, users, me
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+from app.core.logging_config import setup_logging
+
+setup_logging()
 logger = logging.getLogger("naturalsk")
 
 
