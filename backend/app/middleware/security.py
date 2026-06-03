@@ -4,6 +4,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.utils.client_ip import get_client_ip
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     # default_limit is intentionally generous: the SPA polls /status every 2 s
@@ -21,7 +23,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._last_cleanup: float = time.time()
 
     async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = get_client_ip(request) or "unknown"
         path = request.url.path
         now = time.time()
 

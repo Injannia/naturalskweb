@@ -35,6 +35,7 @@ from app.core.limits import UNLIMITED, has_unlimited_quota
 from app.dependencies import get_current_user
 from app.models.audit import AuditLog
 from app.models.user import User
+from app.utils.client_ip import get_client_ip
 from app.schemas.convert import (
     BatchConvertRequest,
     CapabilitiesResponse,
@@ -118,7 +119,7 @@ async def _log_audit(
         user_id=user_id,
         action=action,
         details=details,
-        ip_address=request.client.host if request.client else "",
+        ip_address=get_client_ip(request),
         user_agent=request.headers.get("user-agent", "")[:256],
     )
     db.add(log)

@@ -3,6 +3,8 @@ import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.utils.client_ip import get_client_ip
+
 logger = logging.getLogger("naturalsk.access")
 
 
@@ -11,7 +13,7 @@ class RequestLoggerMiddleware(BaseHTTPMiddleware):
         start = time.time()
         response = await call_next(request)
         duration_ms = int((time.time() - start) * 1000)
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = get_client_ip(request) or "unknown"
 
         logger.info(
             "%s %s %s %dms %s",
