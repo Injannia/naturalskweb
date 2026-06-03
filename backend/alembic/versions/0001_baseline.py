@@ -30,7 +30,7 @@ def upgrade() -> None:
     sa.Column('title', sa.String(length=512), nullable=True),
     sa.Column('file_size', sa.Integer(), nullable=True),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_shared_files_cache_lookup', 'shared_files', ['video_id', 'format', 'quality'], unique=False)
@@ -95,7 +95,7 @@ def upgrade() -> None:
     sa.Column('target_format', sa.String(length=10), nullable=True),
     sa.Column('options', sa.String(length=4096), nullable=True),
     sa.Column('hidden', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
@@ -120,7 +120,7 @@ def upgrade() -> None:
     sa.Column('shared_file_id', sa.String(length=36), nullable=True),
     sa.Column('is_cache_hit', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('hidden', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
@@ -141,7 +141,7 @@ def upgrade() -> None:
     sa.Column('operation', sa.String(length=30), nullable=False),
     sa.Column('inpaint_method', sa.String(length=10), nullable=True),
     sa.Column('hidden', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
