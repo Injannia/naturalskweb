@@ -16,3 +16,13 @@ def test_security_headers_present():
 def test_xss_header_absent():
     resp = client.get("/api/health")
     assert "X-XSS-Protection" not in resp.headers
+
+
+def test_csp_img_src_allows_blob():
+    # Avatars (useAuthedImage) and image-processor previews render via
+    # blob: object URLs in <img>. img-src must permit blob: or they render
+    # as broken/black images.
+    resp = client.get("/api/health")
+    csp = resp.headers["Content-Security-Policy"]
+    img_src = next(d for d in csp.split(";") if d.strip().startswith("img-src"))
+    assert "blob:" in img_src

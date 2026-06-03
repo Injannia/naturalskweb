@@ -69,7 +69,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 CSP_POLICY = (
     "default-src 'self'; "
-    "img-src 'self' data: https://i.ytimg.com; "
+    "img-src 'self' data: blob: https://i.ytimg.com; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; "
     "script-src 'self'; "
