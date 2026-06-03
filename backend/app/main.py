@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.database import async_session, create_tables
+from app.core.database import async_session
 from app.core.security import hash_password, generate_random_password
 from app.middleware.audit import RequestLoggerMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -240,7 +240,7 @@ async def _warmup_tool_versions() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.AVATARS_DIR, exist_ok=True)
-    await create_tables()
+    # Schema is applied by the container entrypoint via `alembic upgrade head`.
     await _create_superadmin()
     scheduler = _setup_scheduler()
     asyncio.create_task(_warmup_image_models())
