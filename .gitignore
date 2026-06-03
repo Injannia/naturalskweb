@@ -13,6 +13,10 @@ backend/data/initial_admin_password.txt
 backend/data/avatars/*
 !backend/data/avatars/.gitkeep
 backend/uploads/
+backend/data/backups/
+backend/data/logs/
+data/backups/
+data/logs/
 
 # Frontend
 frontend/node_modules/
@@ -20,8 +24,6 @@ frontend/dist/
 frontend/.env
 frontend/tsconfig.tsbuildinfo
 
-# Bun
-frontend/bun.lockb
 
 # Playwright-cli snapshots and caches
 .playwright-cli/

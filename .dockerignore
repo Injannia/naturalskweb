@@ -1,0 +1,16 @@
+**/.venv
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist
+backend/data
+backend/uploads
+data
+uploads
+.git
+.worktrees
+.playwright-cli
+docs
+spec
+*.md
+Screenshot_*.png
