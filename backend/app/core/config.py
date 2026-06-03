@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     DATA_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
     AVATARS_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "avatars"))
+    FRONTEND_DIST_DIR: str = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "frontend_dist")
+    )
+    LOGS_DIR: str = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "data", "logs")
+    )
     FILE_TTL_HOURS: int = 6
     MAX_LOGIN_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_MINUTES: int = 15

@@ -73,59 +73,44 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ---
 
-## 🚀 Деплой
+## 🚀 Деплой (Docker + Cloudflare Tunnel)
 
-### 6.7 Docker
-```dockerfile
-# Backend
-FROM python:3.11-slim
-RUN apt-get update && apt-get install -y ffmpeg libreoffice-writer
-COPY backend/ /app/
-RUN pip install -r requirements.txt
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+Единый `app`-контейнер (FastAPI + собранный фронт) + сервис `cloudflared`.
+Наружу публикуется ТОЛЬКО через Cloudflare Tunnel — проброс портов на
+роутере/firewall не нужен, TLS терминируется на edge Cloudflare.
 
-# Frontend  
-FROM node:20-slim AS builder
-COPY frontend/ /app/
-RUN npm ci && npm run build
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-```
+### Образ (корневой Dockerfile, multi-stage)
+- Stage 1 `oven/bun:1-slim`: `bun install --frozen-lockfile && bun run build` → dist.
+- Stage 2 `python:3.11-slim`: ffmpeg + libreoffice-writer + curl, pip-зависимости,
+  бэкенд + dist в `frontend_dist`. Entrypoint: `alembic upgrade head` → uvicorn.
 
-### 6.8 docker-compose.yml
-```yaml
-services:
-  backend:
-    build: ./backend
-    ports: ["8000:8000"]
-    volumes:
-      - ./data:/app/data
-      - ./uploads:/app/uploads
-    env_file: .env
+### docker-compose.yml
+- `app`: без `ports`, тома `./data` и `./uploads`, healthcheck на `/api/health`.
+- `cloudflared`: `cloudflare/cloudflared`, `tunnel run --token ${TUNNEL_TOKEN}`,
+  depends_on app по `service_healthy`.
 
-  frontend:
-    build: ./frontend
-    ports: ["80:80"]
-    depends_on: [backend]
-```
+### scripts/install.sh (свежий VPS, idempotent)
+Preflight (docker/git/curl/openssl/jq) → ранняя валидация CF-токена/домена →
+создание/переиспользование туннеля + ingress + DNS через Cloudflare API →
+генерация `.env` (SECRET_KEY, CORS_ORIGINS, APP_DOMAIN, TUNNEL_TOKEN) →
+`docker compose up -d`. Флаг `--enable-access` ставит Cloudflare Access.
 
-### 6.9 NGINX конфигурация
-- HTTPS (Let's Encrypt / certbot)
-- Proxy pass `/api` → backend:8000
-- Serve frontend static files
-- Rate limiting на уровне NGINX
-- gzip compression
+### scripts/update.sh
+git pull → backup SQLite (`data/backups/`, ротация 10) → rebuild → up.
+Миграции применяются entrypoint'ом на старте.
 
-### 6.10 Скрипт деплоя
-- `deploy.sh` — pull, build, restart docker-compose
-- Backup SQLite перед обновлением
-
----
+### База данных (прод)
+Схема управляется Alembic. Обновления применяют `alembic upgrade head`
+автоматически (entrypoint контейнера). БД НЕ пересоздаётся.
 
 ## ✅ Критерии завершения
-- [ ] Все заголовки безопасности установлены
-- [ ] Rate limiting настроен по уровням
-- [ ] Файлы автоудаляются через 6 часов
-- [ ] Docker сборка работает
-- [ ] NGINX + HTTPS настроен
+- [x] Security-заголовки установлены (SecurityHeadersMiddleware: CSP/HSTS/nosniff/frame-deny)
+- [x] Rate limiting настроен (RateLimitMiddleware)
+- [x] gzip-сжатие (GZipMiddleware)
+- [x] Structured JSON logging с ротацией
+- [x] Файлы автоудаляются через 6 часов (APScheduler)
+- [x] Схема БД через Alembic-миграции
+- [x] Единый Docker-образ (app + cloudflared)
+- [ ] install.sh поднимает стек на свежем VPS, домен открывается через CF Tunnel
+- [ ] update.sh обновляет без потери данных
 - [ ] Приложение работает стабильно 24/7

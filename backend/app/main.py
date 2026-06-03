@@ -4,23 +4,24 @@ import os
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.database import async_session, create_tables
+from app.core.database import async_session
 from app.core.security import hash_password, generate_random_password
 from app.middleware.audit import RequestLoggerMiddleware
-from app.middleware.security import RateLimitMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.models.user import User
 from app.routers import auth, admin, youtube, convert, image, users, me
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+from app.core.logging_config import setup_logging
+
+setup_logging()
 logger = logging.getLogger("naturalsk")
 
 
@@ -239,7 +240,7 @@ async def _warmup_tool_versions() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.AVATARS_DIR, exist_ok=True)
-    await create_tables()
+    # Schema is applied by the container entrypoint via `alembic upgrade head`.
     await _create_superadmin()
     scheduler = _setup_scheduler()
     asyncio.create_task(_warmup_image_models())
@@ -265,6 +266,8 @@ app.add_middleware(
 )
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestLoggerMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -283,3 +286,25 @@ async def health():
 @app.get("/health")
 async def health_alias():
     return {"status": "ok"}
+
+
+# --- Статика фронтенда (single-container prod). API-роуты объявлены выше и
+# имеют приоритет; этот блок ловит всё остальное и отдаёт SPA. ---
+if os.path.isdir(settings.FRONTEND_DIST_DIR):
+    _assets_dir = os.path.join(settings.FRONTEND_DIST_DIR, "assets")
+    if os.path.isdir(_assets_dir):
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+    _index_file = os.path.join(settings.FRONTEND_DIST_DIR, "index.html")
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        # Unknown API routes must 404 as JSON, not fall through to the SPA shell.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = os.path.abspath(os.path.join(settings.FRONTEND_DIST_DIR, full_path))
+        dist_root = os.path.abspath(settings.FRONTEND_DIST_DIR)
+        # Containment: reject anything that escapes the dist tree (path traversal)
+        if candidate.startswith(dist_root + os.sep) and full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(_index_file)
