@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Reset NaturalskWeb dev state: stop servers, drop DB + uploads + avatars,
-# wipe playwright-cli artefacts. Safe to re-run.
+# stop camoufox-cli browser daemon. Safe to re-run.
 #
 # Usage:
 #   ./scripts/clean.sh           # default — clean everything below
-#   ./scripts/clean.sh --keep-snapshots   # keep playwright snapshots
+#   ./scripts/clean.sh --keep-snapshots   # keep camoufox browser sessions open
 #   ./scripts/clean.sh --dry-run          # show what would be removed
 
 set -euo pipefail
@@ -44,6 +44,9 @@ echo "==> Removing SQLite DB and initial password"
 run "rm -f backend/data/naturalsk.db backend/data/naturalsk.db-shm backend/data/naturalsk.db-wal"
 run "rm -f backend/data/initial_admin_password.txt"
 
+echo "==> Removing app logs"
+run "rm -rf backend/data/logs"
+
 echo "==> Removing avatar files (keeping the dir and .gitkeep)"
 if [[ -d backend/data/avatars ]]; then
   run "find backend/data/avatars -type f ! -name .gitkeep -delete"
@@ -55,15 +58,14 @@ if [[ -d backend/uploads ]]; then
 fi
 
 if [[ $KEEP_SNAPSHOTS -eq 0 ]]; then
-  echo "==> Removing playwright-cli snapshots and caches"
-  run "rm -rf .playwright-cli backend/.playwright-cli frontend/.playwright-cli .playwright"
-  run "rm -f backend/*.yml frontend/*.yml"
+  echo "==> Closing camoufox-cli browser sessions and daemon"
+  run "camoufox-cli close --all 2>/dev/null || true"
 else
-  echo "==> Keeping playwright snapshots (--keep-snapshots)"
+  echo "==> Keeping camoufox browser sessions (--keep-snapshots)"
 fi
 
 echo "Done."
 echo
-echo "Next: cd backend && .venv/bin/uvicorn app.main:app --reload"
-echo "      → fresh DB will be created and the superadmin password will land in"
+echo "Next: cd backend && .venv/bin/alembic upgrade head && .venv/bin/uvicorn app.main:app --reload"
+echo "      → migrations recreate the DB; the superadmin password lands in"
 echo "        backend/data/initial_admin_password.txt"
