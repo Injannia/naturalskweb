@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
-from starlette.requests import Request
 
 from app.core.config import settings
 from app.core.database import async_session, create_tables
@@ -298,8 +297,10 @@ if os.path.isdir(settings.FRONTEND_DIST_DIR):
     _index_file = os.path.join(settings.FRONTEND_DIST_DIR, "index.html")
 
     @app.get("/{full_path:path}")
-    async def spa_fallback(full_path: str, request: Request):
-        candidate = os.path.join(settings.FRONTEND_DIST_DIR, full_path)
-        if full_path and os.path.isfile(candidate):
+    async def spa_fallback(full_path: str):
+        candidate = os.path.abspath(os.path.join(settings.FRONTEND_DIST_DIR, full_path))
+        dist_root = os.path.abspath(settings.FRONTEND_DIST_DIR)
+        # Containment: reject anything that escapes the dist tree (path traversal)
+        if candidate.startswith(dist_root + os.sep) and full_path and os.path.isfile(candidate):
             return FileResponse(candidate)
         return FileResponse(_index_file)

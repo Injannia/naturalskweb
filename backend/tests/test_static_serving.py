@@ -41,3 +41,14 @@ def test_asset_served(client_with_dist):
     resp = client_with_dist.get("/assets/app.js")
     assert resp.status_code == 200
     assert "console.log" in resp.text
+
+
+def test_path_traversal_blocked(client_with_dist, tmp_path):
+    # secret file lives OUTSIDE the dist dir (in tmp_path itself).
+    # Use URL-encoded dots (%2e%2e) which Starlette decodes to ".." and passes
+    # verbatim to the route param — bypassing its own URL normalization that
+    # strips leading "..".  This is the real attack vector.
+    secret = tmp_path / "secret.txt"
+    secret.write_text("topsecret")
+    resp = client_with_dist.get("/%2e%2e/secret.txt")
+    assert "topsecret" not in resp.text
