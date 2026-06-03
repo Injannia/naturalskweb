@@ -18,6 +18,7 @@ from app.core.security import (
 )
 from app.core import token_blacklist
 from app.dependencies import get_current_user
+from app.utils.client_ip import get_client_ip
 from app.models.user import User
 from app.models.audit import ActiveSession
 from app.schemas.auth import (
@@ -80,7 +81,7 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
 
     refresh_payload = decode_token(refresh_token)
-    ip_address = request.client.host if request.client else ""
+    ip_address = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")[:256]
 
     # Deduplicate: a user logging in repeatedly from the same browser would
