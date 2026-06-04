@@ -9,6 +9,7 @@ import jwt
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.core import token_blacklist
+from app.models.audit import ActiveSession
 from app.models.user import User
 
 security_scheme = HTTPBearer()
@@ -51,6 +52,19 @@ async def get_current_user(
         token_iat = datetime.fromtimestamp(iat, tz=timezone.utc)
         if token_iat < kicked_at:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
+
+    # Session-existence check: an access token's `sid` points at the
+    # ActiveSession (token_jti) that issued it. Killing that session (self-
+    # service or admin) deletes the row, so the access token must die with it —
+    # otherwise the killed device keeps working until the access token's TTL
+    # expires. Legacy tokens without `sid` predate this binding and are skipped.
+    sid = payload.get("sid")
+    if sid is not None:
+        session_row = await db.execute(
+            select(ActiveSession.id).where(ActiveSession.token_jti == sid)
+        )
+        if session_row.scalar_one_or_none() is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена")
 
     return user
 

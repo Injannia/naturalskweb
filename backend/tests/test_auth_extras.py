@@ -113,6 +113,51 @@ async def test_kicked_at_invalidates_old_tokens(db_session):
 
 
 @pytest.mark.asyncio
+async def test_access_token_rejected_after_its_session_killed(db_session):
+    """Killing a session must immediately invalidate its access token, not just
+    drop it from the list. Regression: a killed device kept working for the full
+    access-token TTL because get_current_user never checked session existence."""
+    user = await _make_user(db_session, username="killtok", password="Password1")
+    refresh = create_refresh_token({"sub": str(user.id), "role": user.role})
+    sid = decode_token(refresh)["jti"]
+    access = create_access_token({"sub": str(user.id), "role": user.role, "sid": sid})
+
+    session = ActiveSession(
+        user_id=user.id,
+        token_jti=sid,
+        ip_address="1.2.3.4",
+        user_agent="ua",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    db_session.add(session)
+    await db_session.commit()
+
+    # While the session row lives, the access token is accepted.
+    result = await get_current_user(_bearer(access), db_session)
+    assert result.id == user.id
+
+    # Kill the session row (exactly what delete_my_session does).
+    await db_session.delete(session)
+    await db_session.commit()
+
+    # The access token must now be rejected, even though it hasn't expired and
+    # kicked_at was never set.
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(_bearer(access), db_session)
+    assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_legacy_access_token_without_sid_still_accepted(db_session):
+    """Tokens issued before `sid` existed carry no session binding, so the
+    existence check is skipped and they remain valid until expiry."""
+    user = await _make_user(db_session, username="legacytok", password="Password1")
+    token = create_access_token({"sub": str(user.id), "role": user.role})
+    result = await get_current_user(_bearer(token), db_session)
+    assert result.id == user.id
+
+
+@pytest.mark.asyncio
 async def test_kicked_at_allows_fresh_tokens(db_session):
     """A token issued AFTER kicked_at must still pass."""
     user = await _make_user(db_session, username="kicked2", password="Password1")
