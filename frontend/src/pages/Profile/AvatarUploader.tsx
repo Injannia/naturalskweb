@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChangeEvent } from 'react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
@@ -137,7 +138,7 @@ export default function AvatarUploader() {
         )}
       </div>
 
-      {imageSrc && (
+      {imageSrc && createPortal(
         <div
           className={styles.modalOverlay}
           onClick={() => !busy && setImageSrc(null)}
@@ -175,7 +176,8 @@ export default function AvatarUploader() {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

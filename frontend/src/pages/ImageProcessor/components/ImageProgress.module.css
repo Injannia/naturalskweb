@@ -133,3 +133,23 @@
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* On phones the three action buttons (download/hide/delete) can't fit beside
+   the thumbnail + filename, and .actions has flex-shrink:0 — they overflowed
+   and overlapped the timestamp. Wrap actions onto a full-width second row. */
+@media (max-width: 640px) {
+  .card {
+    flex-wrap: wrap;
+  }
+  .info {
+    flex: 1 1 auto;
+  }
+  .actions {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+  }
+  .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
