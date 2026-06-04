@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
@@ -59,7 +60,11 @@ export default function ChangePasswordForm() {
     )
   }
 
-  return (
+  // Rendered into document.body: the form lives inside a glass <Card> whose
+  // backdrop-filter establishes a containing block for position:fixed, which
+  // pinned the overlay to the card box instead of the viewport (off-center,
+  // partial backdrop). A portal escapes that ancestor.
+  return createPortal(
     <div className={styles.modalOverlay} onClick={() => !busy && close()}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <h3>Смена пароля</h3>
@@ -93,6 +98,7 @@ export default function ChangePasswordForm() {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
