@@ -77,10 +77,15 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     user.locked_until = None
     user.last_login = now
 
-    access_token = create_access_token({"sub": str(user.id), "role": user.role})
     refresh_token = create_refresh_token({"sub": str(user.id), "role": user.role})
-
     refresh_payload = decode_token(refresh_token)
+    # Bind the access token to its session via `sid` = the refresh-token jti
+    # (== ActiveSession.token_jti) so each request can identify *its own*
+    # session for the "current session" UI.
+    access_token = create_access_token(
+        {"sub": str(user.id), "role": user.role, "sid": refresh_payload["jti"]}
+    )
+
     ip_address = get_client_ip(request)
     user_agent = request.headers.get("user-agent", "")[:256]
 
@@ -155,7 +160,11 @@ async def refresh(body: RefreshRequest, request: Request, db: AsyncSession = Dep
             await db.delete(session)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия завершена администратором")
 
-    access_token = create_access_token({"sub": str(user.id), "role": user.role})
+    # Preserve the session binding: the new access token keeps `sid` pointing
+    # at this refresh token's jti (== ActiveSession.token_jti).
+    access_token = create_access_token(
+        {"sub": str(user.id), "role": user.role, "sid": jti}
+    )
 
     return TokenResponse(
         access_token=access_token,

@@ -204,7 +204,10 @@ async def test_patch_me_valid_username_passes_validation():
 
 
 @pytest.mark.asyncio
-async def test_list_sessions_marks_most_recent_as_current(db_session):
+async def test_list_sessions_marks_request_session_as_current(db_session):
+    """The session matching the access token's `sid` is current, regardless of
+    recency — this is the regression test for the cross-device bug where a
+    phone showed the (newer) desktop session as 'this session'."""
     user = await _make_user(db_session, username="multisess")
     base = datetime.now(timezone.utc)
 
@@ -218,16 +221,45 @@ async def test_list_sessions_marks_most_recent_as_current(db_session):
         db_session, user_id=user.id, jti="jti-new", created_at=base
     )
 
-    items = await list_my_sessions(user=user, db=db_session)
+    # Request comes from the OLDER session (e.g. the phone), not the newest.
+    items = await list_my_sessions(user=user, current_jti="jti-old", db=db_session)
     assert len(items) == 3
 
-    # Sorted desc by created_at. The first item is the newest and is_current=True.
-    assert items[0].id == newest.id
-    assert items[0].is_current is True
-    assert items[1].id == middle.id
-    assert items[1].is_current is False
-    assert items[2].id == older.id
-    assert items[2].is_current is False
+    by_id = {item.id: item for item in items}
+    assert by_id[older.id].is_current is True
+    assert by_id[middle.id].is_current is False
+    assert by_id[newest.id].is_current is False
+
+
+@pytest.mark.asyncio
+async def test_list_sessions_legacy_token_falls_back_to_newest(db_session):
+    """Access tokens issued before `sid` existed (current_jti=None) fall back to
+    marking the most recent session as current."""
+    user = await _make_user(db_session, username="legacysess")
+    base = datetime.now(timezone.utc)
+
+    await _make_session(
+        db_session, user_id=user.id, jti="jti-old", created_at=base - timedelta(hours=1)
+    )
+    newest = await _make_session(
+        db_session, user_id=user.id, jti="jti-new", created_at=base
+    )
+
+    items = await list_my_sessions(user=user, current_jti=None, db=db_session)
+    by_id = {item.id: item for item in items}
+    assert by_id[newest.id].is_current is True
+
+
+@pytest.mark.asyncio
+async def test_list_sessions_unknown_jti_marks_none_current(db_session):
+    """A valid `sid` with no matching row (session revoked) marks nothing current
+    rather than mislabelling another session."""
+    user = await _make_user(db_session, username="goneses")
+    base = datetime.now(timezone.utc)
+    await _make_session(db_session, user_id=user.id, jti="jti-a", created_at=base)
+
+    items = await list_my_sessions(user=user, current_jti="jti-missing", db=db_session)
+    assert all(item.is_current is False for item in items)
 
 
 @pytest.mark.asyncio
@@ -239,7 +271,7 @@ async def test_list_sessions_only_own_sessions(db_session):
     await _make_session(db_session, user_id=me.id, jti="jti-me", created_at=base)
     await _make_session(db_session, user_id=other.id, jti="jti-other", created_at=base)
 
-    items = await list_my_sessions(user=me, db=db_session)
+    items = await list_my_sessions(user=me, current_jti="jti-me", db=db_session)
     assert len(items) == 1
     assert items[0].ip_address == "1.2.3.4"
 
@@ -303,21 +335,51 @@ async def test_delete_my_session_other_users_session_returns_404(db_session):
 
 
 @pytest.mark.asyncio
-async def test_delete_all_sessions_keeps_only_most_recent(db_session):
+async def test_delete_all_sessions_keeps_request_session(db_session):
+    """Keep the session issuing the request (via `sid`), not merely the newest."""
     user = await _make_user(db_session, username="masskill")
     base = datetime.now(timezone.utc)
 
-    await _make_session(
+    older = await _make_session(
         db_session, user_id=user.id, jti="jti-old", created_at=base - timedelta(hours=2)
     )
     await _make_session(
         db_session, user_id=user.id, jti="jti-mid", created_at=base - timedelta(hours=1)
     )
+    await _make_session(
+        db_session, user_id=user.id, jti="jti-new", created_at=base
+    )
+
+    # Request from the OLDER session — it must survive, the others die.
+    msg = await delete_all_my_sessions_except_current(
+        user=user, current_jti="jti-old", db=db_session
+    )
+    assert msg.message
+
+    remaining = (
+        await db_session.execute(
+            select(ActiveSession).where(ActiveSession.user_id == user.id)
+        )
+    ).scalars().all()
+    assert len(remaining) == 1
+    assert remaining[0].id == older.id
+
+
+@pytest.mark.asyncio
+async def test_delete_all_sessions_legacy_token_keeps_newest(db_session):
+    user = await _make_user(db_session, username="masskill_legacy")
+    base = datetime.now(timezone.utc)
+
+    await _make_session(
+        db_session, user_id=user.id, jti="jti-old", created_at=base - timedelta(hours=1)
+    )
     newest = await _make_session(
         db_session, user_id=user.id, jti="jti-new", created_at=base
     )
 
-    msg = await delete_all_my_sessions_except_current(user=user, db=db_session)
+    msg = await delete_all_my_sessions_except_current(
+        user=user, current_jti=None, db=db_session
+    )
     assert msg.message
 
     remaining = (
@@ -335,14 +397,18 @@ async def test_delete_all_sessions_with_zero_or_one_session_is_noop(db_session):
     base = datetime.now(timezone.utc)
 
     # Zero sessions.
-    msg = await delete_all_my_sessions_except_current(user=user, db=db_session)
+    msg = await delete_all_my_sessions_except_current(
+        user=user, current_jti=None, db=db_session
+    )
     assert msg.message
 
     # One session — must remain after the call.
     only = await _make_session(
         db_session, user_id=user.id, jti="jti-only", created_at=base
     )
-    msg = await delete_all_my_sessions_except_current(user=user, db=db_session)
+    msg = await delete_all_my_sessions_except_current(
+        user=user, current_jti="jti-only", db=db_session
+    )
     assert msg.message
 
     remaining = (
@@ -370,7 +436,9 @@ async def test_delete_all_sessions_does_not_touch_other_users(db_session):
         db_session, user_id=other.id, jti="jti-other", created_at=base - timedelta(hours=3)
     )
 
-    await delete_all_my_sessions_except_current(user=me, db=db_session)
+    await delete_all_my_sessions_except_current(
+        user=me, current_jti="jti-me-2", db=db_session
+    )
 
     # Other user's session remains.
     still_there = (

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_session_jti, get_current_user
 from app.models.audit import ActiveSession
 from app.models.user import User
 from app.schemas.auth import MessageResponse
@@ -63,15 +63,30 @@ async def update_me(
     return user
 
 
+def _current_session_id(
+    sessions: list[ActiveSession], current_jti: str | None
+) -> int | None:
+    """Pick the id of the session matching the request's `sid`. Sessions must be
+    ordered newest-first for the legacy fallback (no `sid`) to pick the newest."""
+    if current_jti is not None:
+        for session in sessions:
+            if session.token_jti == current_jti:
+                return session.id
+        return None
+    return sessions[0].id if sessions else None
+
+
 @router.get("/sessions", response_model=list[MySessionItem])
 async def list_my_sessions(
     user: User = Depends(get_current_user),
+    current_jti: str | None = Depends(get_current_session_jti),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the user's own active sessions.
 
-    The most recent session by `created_at` is marked `is_current=True`.
-    The remaining are `is_current=False`.
+    The session that issued the request (matched via the access token's `sid`
+    claim == ActiveSession.token_jti) is marked `is_current=True`. For legacy
+    tokens without `sid`, fall back to marking the most recent session.
     """
     result = await db.execute(
         select(ActiveSession)
@@ -80,8 +95,10 @@ async def list_my_sessions(
     )
     sessions = list(result.scalars().all())
 
+    current_id = _current_session_id(sessions, current_jti)
+
     items: list[MySessionItem] = []
-    for index, session in enumerate(sessions):
+    for session in sessions:
         items.append(
             MySessionItem(
                 id=session.id,
@@ -89,7 +106,7 @@ async def list_my_sessions(
                 user_agent=session.user_agent,
                 created_at=session.created_at,
                 expires_at=session.expires_at,
-                is_current=(index == 0),
+                is_current=(session.id == current_id),
             )
         )
     return items
@@ -118,9 +135,11 @@ async def delete_my_session(
 @router.delete("/sessions", response_model=MessageResponse)
 async def delete_all_my_sessions_except_current(
     user: User = Depends(get_current_user),
+    current_jti: str | None = Depends(get_current_session_jti),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete all of the user's sessions except the most recent one (current)."""
+    """Delete all of the user's sessions except the one issuing the request
+    (matched via `sid`). For legacy tokens without `sid`, keep the newest."""
     result = await db.execute(
         select(ActiveSession)
         .where(ActiveSession.user_id == user.id)
@@ -130,8 +149,15 @@ async def delete_all_my_sessions_except_current(
     if len(sessions) <= 1:
         return MessageResponse(message="Других сессий нет")
 
-    for session in sessions[1:]:
-        await db.delete(session)
+    current_id = _current_session_id(sessions, current_jti)
+    if current_id is None:
+        # `sid` set but no matching row (session expired/revoked): keep newest
+        # so we never wipe every session out from under the user.
+        current_id = sessions[0].id
+
+    for session in sessions:
+        if session.id != current_id:
+            await db.delete(session)
     await db.commit()
     return MessageResponse(message="Остальные сессии завершены")
 

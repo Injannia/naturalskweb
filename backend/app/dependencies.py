@@ -55,6 +55,23 @@ async def get_current_user(
     return user
 
 
+async def get_current_session_jti(
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+) -> str | None:
+    """Return the `sid` claim of the access token = the ActiveSession.token_jti
+    of the session that issued this request. Lets endpoints identify *which*
+    of the user's sessions is the current one instead of guessing by recency.
+
+    Legacy access tokens (issued before `sid` existed) lack the claim and yield
+    None; callers fall back to a best-effort heuristic in that case.
+    """
+    try:
+        payload = decode_token(credentials.credentials)
+    except jwt.InvalidTokenError:
+        return None
+    return payload.get("sid")
+
+
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Требуются права администратора")
