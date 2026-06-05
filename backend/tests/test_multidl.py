@@ -96,3 +96,72 @@ async def test_service_get_info_parses_mock(db_session, monkeypatch):
     assert info.title == "Cool clip"
     assert info.platform == "TikTok"
     assert info.duration == 12
+
+
+from starlette.requests import Request
+
+
+def _make_request() -> Request:
+    scope = {"type": "http", "headers": [(b"user-agent", b"pytest")], "client": ("127.0.0.1", 0)}
+    return Request(scope)
+
+
+class _BG:
+    def add_task(self, *a, **k):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_router_permission_gate(db_session):
+    from app.routers.multidl import start_download
+    from app.schemas.multidl import DownloadRequest
+    from fastapi import HTTPException
+    user = await _make_user(db_session, username="noperm", perms={"multidl": False})
+    with pytest.raises(HTTPException) as exc:
+        await start_download(body=DownloadRequest(url="https://vk.com/video-1_1"),
+                             background_tasks=_BG(), user=user, db=db_session)
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_router_start_increments_usage(db_session):
+    from app.routers.multidl import start_download
+    from app.schemas.multidl import DownloadRequest
+    user = await _make_user(db_session, username="ok")
+    res = await start_download(body=DownloadRequest(url="https://vk.com/video-1_1"),
+                               background_tasks=_BG(), user=user, db=db_session)
+    assert res.status == "pending"
+    await db_session.refresh(user)
+    assert user.usage_today.get("multidl") == 1
+
+
+@pytest.mark.asyncio
+async def test_router_quota_exhausted(db_session):
+    from app.routers.multidl import start_download
+    from app.schemas.multidl import DownloadRequest
+    from fastapi import HTTPException
+    user = await _make_user(db_session, username="full")
+    user.limits = {"multidl_daily": 1}
+    user.usage_today = {"multidl": 1}
+    await db_session.commit()
+    with pytest.raises(HTTPException) as exc:
+        await start_download(body=DownloadRequest(url="https://vk.com/video-1_1"),
+                             background_tasks=_BG(), user=user, db=db_session)
+    assert exc.value.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_router_no_youtube_cache_collision(db_session):
+    from datetime import datetime, timedelta, timezone
+    from app.models.shared_file import SharedFile
+    from app.services import youtube_service
+    sf = SharedFile(
+        id="abc", video_id="multidl:abc", format="mp4", quality="best",
+        filename="x.mp4", file_size=1,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=6),
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(sf)
+    await db_session.commit()
+    hit = await youtube_service.find_cached_shared_file(video_id="abc", fmt="mp4", quality="best", db=db_session)
+    assert hit is None

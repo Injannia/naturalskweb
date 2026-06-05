@@ -17,7 +17,7 @@ from app.middleware.audit import RequestLoggerMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.models.user import User
-from app.routers import auth, admin, youtube, convert, image, users, me
+from app.routers import auth, admin, youtube, convert, image, users, me, multidl
 
 from app.core.logging_config import setup_logging
 
@@ -272,6 +272,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(youtube.router)
+app.include_router(multidl.router)
 app.include_router(convert.router)
 app.include_router(image.router)
 app.include_router(users.router)
