@@ -4,5 +4,6 @@ from app.models.download_task import DownloadTask
 from app.models.shared_file import SharedFile
 from app.models.convert_task import ConvertTask
 from app.models.image_task import ImageTask
+from app.models.multi_download_task import MultiDownloadTask
 
-__all__ = ["User", "AuditLog", "ActiveSession", "DownloadTask", "SharedFile", "ConvertTask", "ImageTask"]
+__all__ = ["User", "AuditLog", "ActiveSession", "DownloadTask", "SharedFile", "ConvertTask", "ImageTask", "MultiDownloadTask"]
