@@ -23,3 +23,9 @@ def test_schema_download_request_rejects_blank():
 def test_schema_status_literal_accepts_converting():
     s = DownloadStatus(task_id="t1", status="converting", progress=10.0)
     assert s.status == "converting"
+
+
+def test_ffmpeg_returns_path():
+    from app.utils.ffmpeg import find_ffmpeg
+    p = find_ffmpeg()
+    assert isinstance(p, str) and len(p) > 0
