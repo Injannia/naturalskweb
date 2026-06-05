@@ -165,3 +165,28 @@ async def test_router_no_youtube_cache_collision(db_session):
     await db_session.commit()
     hit = await youtube_service.find_cached_shared_file(video_id="abc", fmt="mp4", quality="best", db=db_session)
     assert hit is None
+
+
+@pytest.mark.asyncio
+async def test_integration_youtube_increment_keeps_multidl(db_session):
+    """A date rollover in youtube's _increment_usage must not wipe multidl usage."""
+    from datetime import date, timedelta
+    from app.routers.youtube import _increment_usage as yt_increment
+    user = await _make_user(db_session, username="roll")
+    user.usage_today = {"youtube": 3, "converter": 0, "image": 0, "multidl": 7}
+    user.usage_reset_date = date.today() - timedelta(days=1)  # force rollover
+    await db_session.commit()
+    await yt_increment(user, db_session)
+    await db_session.refresh(user)
+    assert user.usage_today.get("youtube") == 1
+    assert user.usage_today.get("multidl") == 0
+
+
+def test_integration_user_defaults_include_multidl():
+    from app.models.user import User
+    perms = User.permissions.default.arg(None)
+    limits = User.limits.default.arg(None)
+    usage = User.usage_today.default.arg(None)
+    assert perms.get("multidl") is True
+    assert limits.get("multidl_daily") == 50
+    assert "multidl" in usage

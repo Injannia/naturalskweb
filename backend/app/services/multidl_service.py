@@ -288,6 +288,13 @@ async def download(request: DownloadRequest, task_id: str, user_id: int, shared_
     """Background coroutine: download mp4 or extract mp3, then register a SharedFile."""
     url = request.url
     out_dir = os.path.join(settings.UPLOAD_DIR, shared_file_id)
+    # Persist a "downloading" transition BEFORE creating any files. This moves the
+    # row out of "pending" immediately so cleanup_stale_pending_tasks (which targets
+    # pending rows older than 30 min) never race-deletes a live, long-running
+    # download. A row left in "pending" therefore means the background task never
+    # ran (e.g. lost on a restart) and is a genuine orphan — and has no out_dir yet.
+    _update_active(task_id, status="downloading")
+    await _persist_task(task_id, status="downloading")
     os.makedirs(out_dir, exist_ok=True)
     try:
         if request.audio_only:

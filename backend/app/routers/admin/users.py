@@ -119,10 +119,10 @@ async def create_user(
         password_hash=hash_password(password),
         role=body.role,
         must_change_password=True,
-        permissions=body.permissions or {"youtube": True, "converter": True, "image": True},
+        permissions=body.permissions or {"youtube": True, "converter": True, "image": True, "multidl": True},
         # Only superadmin reaches this endpoint; they may set limits for the new
         # account (relevant for regular users — admins/superadmins are unlimited).
-        limits=body.limits or {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50},
+        limits=body.limits or {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50, "multidl_daily": 50},
     )
     db.add(user)
     await db.flush()

@@ -16,13 +16,13 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     permissions: Mapped[dict] = mapped_column(
-        JSON, default=lambda: {"youtube": True, "converter": True, "image": True}, nullable=False
+        JSON, default=lambda: {"youtube": True, "converter": True, "image": True, "multidl": True}, nullable=False
     )
     limits: Mapped[dict] = mapped_column(
-        JSON, default=lambda: {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50}, nullable=False
+        JSON, default=lambda: {"youtube_daily": 50, "convert_daily": 100, "image_daily": 50, "multidl_daily": 50}, nullable=False
     )
     usage_today: Mapped[dict] = mapped_column(
-        JSON, default=lambda: {"youtube": 0, "converter": 0, "image": 0}, nullable=False
+        JSON, default=lambda: {"youtube": 0, "converter": 0, "image": 0, "multidl": 0}, nullable=False
     )
     usage_reset_date: Mapped[date] = mapped_column(
         Date, default=lambda: date.today(), nullable=False
