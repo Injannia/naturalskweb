@@ -6,6 +6,7 @@ import { Button, Card, Input } from '../../components/ui'
 import { multidlApi } from './multidlApi'
 import type { DownloadStatus } from './types'
 import DownloadCard from './DownloadCard'
+import { extractApiError } from '../../utils/apiError'
 import styles from './MultiDownloader.module.css'
 
 const ACTIVE = new Set(['pending', 'downloading', 'converting'])
@@ -58,10 +59,8 @@ export default function MultiDownloaderPage() {
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 429) {
         toast.error('Достигнут дневной лимит загрузок')
-      } else if (axios.isAxiosError(err) && err.response?.data?.detail) {
-        toast.error(String(err.response.data.detail))
       } else {
-        toast.error('Не удалось начать загрузку')
+        toast.error(extractApiError(err, 'Не удалось начать загрузку'))
       }
     } finally {
       setSubmitting(false)

@@ -8,6 +8,7 @@ import { Upload, Image, AlertCircle } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import { imageApi } from '../imageApi'
+import { extractApiError } from '../../../utils/apiError'
 import type { ImageOperation, ImageUploadResponse } from '../types'
 import styles from './ImageUploader.module.css'
 
@@ -73,9 +74,7 @@ export function ImageUploader({
         onUploaded(response)
       })
       .catch((err) => {
-        const message =
-          err?.response?.data?.detail ?? err?.message ?? 'Ошибка загрузки'
-        toast.error(message)
+        toast.error(extractApiError(err, 'Ошибка загрузки'))
       })
       .finally(() => {
         setIsUploading(false)

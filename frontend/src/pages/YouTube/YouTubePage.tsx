@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Youtube, Link, AlertCircle, Download, ClipboardPaste, X, TriangleAlert, History, FileDown, RotateCcw, ChevronDown, ChevronUp, Trash2, Loader } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { extractApiError } from '../../utils/apiError'
 import { youtubeApi } from './youtubeApi'
 import { isValidYouTubeUrl, estimatePlaylistSize, formatFileSize, triggerBlobDownload, FILE_TTL_MS } from './utils'
 import VideoCard from './VideoCard'
@@ -322,17 +323,14 @@ export default function YouTubePage() {
         toast.error('Не удалось получить информацию о видео.')
       }
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        if (err.response?.status === 400) {
-          toast.error(detail ?? 'Неверный URL. Проверьте ссылку.')
-        } else if (err.response?.status === 404) {
-          toast.error('Видео не найдено или недоступно.')
-        } else {
-          toast.error(detail ?? 'Ошибка при получении информации о видео.')
-        }
-      } else {
+      if (!axios.isAxiosError(err)) {
         toast.error('Нет связи с сервером.')
+      } else if (err.response?.status === 404) {
+        toast.error('Видео не найдено или недоступно.')
+      } else if (err.response?.status === 400) {
+        toast.error(extractApiError(err, 'Неверный URL. Проверьте ссылку.'))
+      } else {
+        toast.error(extractApiError(err, 'Ошибка при получении информации о видео.'))
       }
     } finally {
       setLoadingInfo(false)
@@ -595,15 +593,10 @@ export default function YouTubePage() {
       // Task 6: refresh quota after queuing
       youtubeApi.getQuota().then(setQuota).catch(() => undefined)
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        if (err.response?.status === 429) {
-          toast.error('Достигнут дневной лимит загрузок.')
-        } else {
-          toast.error(detail ?? 'Не удалось запустить загрузку.')
-        }
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        toast.error('Достигнут дневной лимит загрузок.')
       } else {
-        toast.error('Не удалось запустить загрузку.')
+        toast.error(extractApiError(err, 'Не удалось запустить загрузку.'))
       }
     } finally {
       setStartingDownload(false)
@@ -630,15 +623,10 @@ export default function YouTubePage() {
       await initiateDownload(trimmedUrl, format, quality, title, videoIds, true)
       youtubeApi.getQuota().then(setQuota).catch(() => undefined)
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        if (err.response?.status === 429) {
-          toast.error('Достигнут дневной лимит загрузок.')
-        } else {
-          toast.error(detail ?? 'Не удалось запустить загрузку.')
-        }
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        toast.error('Достигнут дневной лимит загрузок.')
       } else {
-        toast.error('Не удалось запустить загрузку.')
+        toast.error(extractApiError(err, 'Не удалось запустить загрузку.'))
       }
     } finally {
       setForceDownloadLoading(false)
@@ -657,15 +645,10 @@ export default function YouTubePage() {
       await initiateDownload(downloadUrl, dlFormat, dlQuality, title, videoIds)
       youtubeApi.getQuota().then(setQuota).catch(() => undefined)
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        if (err.response?.status === 429) {
-          toast.error('Достигнут дневной лимит загрузок.')
-        } else {
-          toast.error(detail ?? 'Не удалось запустить загрузку.')
-        }
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        toast.error('Достигнут дневной лимит загрузок.')
       } else {
-        toast.error('Не удалось запустить загрузку.')
+        toast.error(extractApiError(err, 'Не удалось запустить загрузку.'))
       }
     } finally {
       setStartingDownload(false)
@@ -723,12 +706,7 @@ export default function YouTubePage() {
           toast.info('Загрузка поставлена в очередь.')
         }
       } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          const detail = err.response?.data?.detail
-          toast.error(detail ?? 'Не удалось повторить загрузку.')
-        } else {
-          toast.error('Не удалось повторить загрузку.')
-        }
+        toast.error(extractApiError(err, 'Не удалось повторить загрузку.'))
       }
     },
     [startPolling],

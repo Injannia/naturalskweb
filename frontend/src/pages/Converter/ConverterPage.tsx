@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import axios from 'axios'
+import { extractApiError } from '../../utils/apiError'
 import { converterApi } from './converterApi'
 import { FileDropZone } from './FileDropZone'
 import FileItem from './FileItem'
@@ -370,12 +371,7 @@ export default function ConverterPage() {
       setUploadedFiles((prev) =>
         prev.filter((f) => !optimistic.some((o) => o.task_id === f.task_id)),
       )
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        toast.error(detail ?? 'Ошибка загрузки файлов на сервер.')
-      } else {
-        toast.error('Не удалось загрузить файлы.')
-      }
+      toast.error(extractApiError(err, 'Не удалось загрузить файлы.'))
     } finally {
       setUploading(false)
     }
@@ -461,15 +457,10 @@ export default function ConverterPage() {
       // Refresh quota after queuing
       converterApi.getQuota().then(setQuota).catch(() => undefined)
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail
-        if (err.response?.status === 429) {
-          toast.error('Достигнут дневной лимит конвертаций.')
-        } else {
-          toast.error(detail ?? 'Не удалось запустить конвертацию.')
-        }
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        toast.error('Достигнут дневной лимит конвертаций.')
       } else {
-        toast.error('Не удалось запустить конвертацию.')
+        toast.error(extractApiError(err, 'Не удалось запустить конвертацию.'))
       }
     } finally {
       setConverting(false)

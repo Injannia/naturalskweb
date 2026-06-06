@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import type { ChangeEvent } from 'react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
-import axios from 'axios'
+import { extractApiError as errorMessage } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import AvatarImage from '../../components/AvatarImage'
@@ -43,12 +43,6 @@ async function getCroppedBlob(imageSrc: string, area: Area): Promise<Blob> {
   })
 }
 
-function errorMessage(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
-    return e.response.data.detail
-  }
-  return fallback
-}
 
 export default function AvatarUploader() {
   const { user, setUser } = useAuth()

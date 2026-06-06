@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import { extractApiError } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
@@ -27,11 +27,7 @@ export default function ChangeUsernameForm() {
       toast.success('Имя обновлено')
       setEditing(false)
     } catch (e: unknown) {
-      const detail =
-        axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string'
-          ? e.response.data.detail
-          : 'Ошибка'
-      toast.error(detail)
+      toast.error(extractApiError(e, 'Ошибка'))
     } finally {
       setBusy(false)
     }

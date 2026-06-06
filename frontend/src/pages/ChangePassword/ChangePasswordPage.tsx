@@ -2,6 +2,7 @@ import { useState, useMemo, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
+import { extractApiError } from '../../utils/apiError'
 import { useAuth } from '../../stores/authStore'
 import AuroraBackground from '../../components/AuroraBackground/AuroraBackground'
 import StarryBackground from '../../components/StarryBackground/StarryBackground'
@@ -75,16 +76,7 @@ export default function ChangePasswordPage() {
       toast.success('Пароль успешно изменён')
       navigate('/', { replace: true })
     } catch (err: unknown) {
-      if (
-        typeof err === 'object' &&
-        err !== null &&
-        'response' in err &&
-        typeof (err as { response?: { data?: { detail?: string } } }).response?.data?.detail === 'string'
-      ) {
-        setError((err as { response: { data: { detail: string } } }).response.data.detail)
-      } else {
-        setError('Ошибка при смене пароля')
-      }
+      setError(extractApiError(err, 'Ошибка при смене пароля'))
     } finally {
       setLoading(false)
     }

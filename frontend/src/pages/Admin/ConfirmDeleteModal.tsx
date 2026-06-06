@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import { extractApiError as errorMessage } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { Button, Input } from '../../components/ui'
@@ -12,12 +12,7 @@ interface Props {
   onDeleted: () => void
 }
 
-function errorMessage(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
-    return e.response.data.detail
-  }
-  return fallback
-}
+
 
 export default function ConfirmDeleteModal({ userId, username, onClose, onDeleted }: Props) {
   const [confirm, setConfirm] = useState('')

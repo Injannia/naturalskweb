@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import { extractApiError as errorMessage } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
@@ -16,12 +16,7 @@ const DEFAULT_PERMS = { youtube: true, converter: true, image: true, multidl: tr
 const DEFAULT_LIMITS = { youtube_daily: 50, convert_daily: 100, image_daily: 50, multidl_daily: 50 }
 const USERNAME_RE = /^[a-zA-Z0-9_]{2,50}$/
 
-function errorMessage(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
-    return e.response.data.detail
-  }
-  return fallback
-}
+
 
 export default function CreateUserModal({ onClose, onCreated }: Props) {
   const { user: actor } = useAuth()

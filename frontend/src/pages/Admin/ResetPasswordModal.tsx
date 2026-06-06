@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import { extractApiError as errorMessage } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { Button } from '../../components/ui'
@@ -11,12 +11,7 @@ interface Props {
   onClose: () => void
 }
 
-function errorMessage(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
-    return e.response.data.detail
-  }
-  return fallback
-}
+
 
 export default function ResetPasswordModal({ userId, onClose }: Props) {
   const [busy, setBusy] = useState(false)
