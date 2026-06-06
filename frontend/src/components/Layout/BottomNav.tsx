@@ -4,6 +4,7 @@ import {
   Youtube,
   FileBox,
   Image as ImageIcon,
+  Download,
   User as UserIcon,
   Shield,
 } from 'lucide-react'
@@ -34,6 +35,9 @@ export default function BottomNav() {
   if (user.permissions.image) {
     items.push({ to: '/image', icon: ImageIcon, label: 'Image' })
   }
+  if (user.permissions.multidl) {
+    items.push({ to: '/multidl', icon: Download, label: 'Multi' })
+  }
 
   // Пятый пункт: профиль для обычных юзеров, админка для admin/superadmin
   if (isAdmin) {
@@ -42,8 +46,10 @@ export default function BottomNav() {
     items.push({ to: '/me', icon: UserIcon, label: 'ЛК' })
   }
 
-  // Если получилось >5, оставляем первые 4 + админку/ЛК на 5й позиции
-  const display = items.length > 5 ? [...items.slice(0, 4), items[items.length - 1]] : items
+  // Если получилось >6, оставляем первые 5 + админку/ЛК последним пунктом.
+  // Кап = 6: при всех 4 модулях (Home + 4 модуля + Admin/ЛК) все пункты влезают
+  // в нижнюю панель — неактивные схлопываются до иконок, подпись только у активного.
+  const display = items.length > 6 ? [...items.slice(0, 5), items[items.length - 1]] : items
 
   return (
     <nav className={styles.bottomNav} aria-label="Основная навигация">

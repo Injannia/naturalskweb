@@ -4,6 +4,7 @@ import {
   Youtube,
   FileBox,
   Image as ImageIcon,
+  Download,
   User as UserIcon,
   Shield,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/youtube', icon: Youtube, label: 'YouTube Downloader', visible: user?.permissions.youtube },
     { to: '/converter', icon: FileBox, label: 'File Converter', visible: user?.permissions.converter },
     { to: '/image', icon: ImageIcon, label: 'Image Processor', visible: user?.permissions.image },
+    { to: '/multidl', icon: Download, label: 'Multi downloader', visible: user?.permissions.multidl },
   ]
 
   const navItemClass = ({ isActive }: { isActive: boolean }) =>

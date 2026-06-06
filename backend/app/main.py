@@ -17,7 +17,7 @@ from app.middleware.audit import RequestLoggerMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.models.user import User
-from app.routers import auth, admin, youtube, convert, image, users, me
+from app.routers import auth, admin, youtube, convert, image, users, me, multidl
 
 from app.core.logging_config import setup_logging
 
@@ -37,7 +37,7 @@ async def _create_superadmin():
             password_hash=hash_password(password),
             role="superadmin",
             must_change_password=True,
-            permissions={"youtube": True, "converter": True, "image": True},
+            permissions={"youtube": True, "converter": True, "image": True, "multidl": True},
             limits={"youtube_daily": 999, "convert_daily": 999, "image_daily": 999},
         )
         db.add(superadmin)
@@ -143,7 +143,7 @@ def _setup_scheduler():
             today = date.today()
             for user in users:
                 if user.usage_reset_date != today:
-                    user.usage_today = {"youtube": 0, "converter": 0, "image": 0}
+                    user.usage_today = {"youtube": 0, "converter": 0, "image": 0, "multidl": 0}
                     user.usage_reset_date = today
             await db.commit()
 
@@ -152,6 +152,7 @@ def _setup_scheduler():
         import shutil
         from app.models.convert_task import ConvertTask
         from app.models.image_task import ImageTask as ImageTaskModel
+        from app.models.multi_download_task import MultiDownloadTask
 
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         cutoff_naive = cutoff.replace(tzinfo=None)
@@ -189,14 +190,32 @@ def _setup_scheduler():
                         shutil.rmtree(task_dir, ignore_errors=True)
                     await db.delete(task)
 
-                total = len(stale_tasks) + len(stale_image_tasks)
+                # Clean stale multidl tasks. A multidl row only stays "pending" if
+                # its background download() never started (e.g. lost on a restart);
+                # download() persists a "downloading" transition before creating any
+                # files, so a stale pending row has no on-disk directory to remove.
+                # Its output dir is keyed by shared_file_id (not task.id) and any
+                # orphaned dir is reclaimed by cleanup_expired_shared_files' mtime
+                # fallback, so here we only drop the dead DB row.
+                result_md = await db.execute(
+                    select(MultiDownloadTask).where(
+                        MultiDownloadTask.status == "pending",
+                        MultiDownloadTask.created_at < cutoff_naive,
+                    )
+                )
+                stale_md_tasks = result_md.scalars().all()
+                for task in stale_md_tasks:
+                    await db.delete(task)
+
+                total = len(stale_tasks) + len(stale_image_tasks) + len(stale_md_tasks)
                 if total:
                     await db.commit()
                     logger.info(
-                        "Cleaned up %d stale pending tasks (%d convert, %d image)",
+                        "Cleaned up %d stale pending tasks (%d convert, %d image, %d multidl)",
                         total,
                         len(stale_tasks),
                         len(stale_image_tasks),
+                        len(stale_md_tasks),
                     )
         except Exception as exc:
             logger.warning("cleanup_stale_pending_tasks failed: %s", exc)
@@ -272,6 +291,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(youtube.router)
+app.include_router(multidl.router)
 app.include_router(convert.router)
 app.include_router(image.router)
 app.include_router(users.router)

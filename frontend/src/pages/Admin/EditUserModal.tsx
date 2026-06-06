@@ -115,7 +115,7 @@ export default function EditUserModal({ userId, onClose, onSaved }: Props) {
             <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
               Права
             </legend>
-            {(['youtube', 'converter', 'image'] as const).map((k) => (
+            {(['youtube', 'converter', 'image', 'multidl'] as const).map((k) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-1) 0', color: 'var(--text-primary)' }}>
                 <input
                   type="checkbox"
@@ -145,6 +145,7 @@ export default function EditUserModal({ userId, onClose, onSaved }: Props) {
                     ['youtube_daily', 'YouTube'],
                     ['convert_daily', 'Convert'],
                     ['image_daily', 'Image'],
+                    ['multidl_daily', 'Multi downloader'],
                   ] as const
                 ).map(([k, l]) => (
                   <Input

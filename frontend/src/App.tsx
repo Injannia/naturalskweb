@@ -12,6 +12,7 @@ import ProfilePage from './pages/Profile/ProfilePage'
 import YouTubePage from './pages/YouTube/YouTubePage'
 import ConverterPage from './pages/Converter/ConverterPage'
 import ImageProcessorPage from './pages/ImageProcessor/ImageProcessorPage'
+import MultiDownloaderPage from './pages/MultiDownloader/MultiDownloaderPage'
 import AdminPage from './pages/Admin/AdminPage'
 
 export default function App() {
@@ -53,6 +54,14 @@ export default function App() {
             element={
               <ProtectedRoute requiredPermission="image">
                 <ImageProcessorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/multidl"
+            element={
+              <ProtectedRoute requiredPermission="multidl">
+                <MultiDownloaderPage />
               </ProtectedRoute>
             }
           />

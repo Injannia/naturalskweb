@@ -83,7 +83,7 @@ async def _increment_usage(user: User, db: AsyncSession) -> None:
     """Atomically increment the youtube usage counter for today."""
     today = date.today()
     if user.usage_reset_date != today:
-        user.usage_today = {"youtube": 0, "converter": 0, "image": 0}
+        user.usage_today = {"youtube": 0, "converter": 0, "image": 0, "multidl": 0}
         user.usage_reset_date = today
     # NOTE: We assign a new dict object to trigger SQLAlchemy change detection.
     # Do NOT mutate user.usage_today in-place — changes won't be persisted.

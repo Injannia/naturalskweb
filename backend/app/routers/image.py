@@ -94,7 +94,7 @@ async def _increment_usage(user: User, db: AsyncSession) -> None:
     """
     today = date.today()
     if user.usage_reset_date != today:
-        user.usage_today = {"youtube": 0, "converter": 0, "image": 0}
+        user.usage_today = {"youtube": 0, "converter": 0, "image": 0, "multidl": 0}
         user.usage_reset_date = today
     # Assign a new dict to trigger SQLAlchemy change detection.
     today_usage = dict(user.usage_today)

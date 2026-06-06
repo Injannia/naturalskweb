@@ -62,9 +62,13 @@ async def get_stats(
     def _im(u: User) -> int:
         return int(u.usage_today.get("image", 0)) if u.usage_today else 0
 
+    def _md(u: User) -> int:
+        return int(u.usage_today.get("multidl", 0)) if u.usage_today else 0
+
     dl = sum(_yt(u) for u in users)
     cv = sum(_cv(u) for u in users)
     im = sum(_im(u) for u in users)
+    md = sum(_md(u) for u in users)
 
     now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
     active_sess = (
@@ -78,7 +82,7 @@ async def get_stats(
     storage_mb = _dir_size_mb(settings.UPLOAD_DIR) + _dir_size_mb(settings.DATA_DIR)
 
     def _total(u: User) -> int:
-        return _yt(u) + _cv(u) + _im(u)
+        return _yt(u) + _cv(u) + _im(u) + _md(u)
 
     top_sorted = sorted(users, key=_total, reverse=True)[:5]
     top_users = [
@@ -100,6 +104,7 @@ async def get_stats(
         total_downloads_today=dl,
         total_conversions_today=cv,
         total_image_ops_today=im,
+        total_multidl_ops_today=md,
         storage_used_mb=storage_mb,
         active_sessions=active_sess,
         top_users=top_users,

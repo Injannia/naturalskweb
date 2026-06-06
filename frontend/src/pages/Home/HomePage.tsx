@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Youtube, FileBox, Image as ImageIcon, User as UserIcon, Shield } from 'lucide-react'
+import { Youtube, FileBox, Image as ImageIcon, Download, User as UserIcon, Shield } from 'lucide-react'
 import { useAuth } from '../../stores/authStore'
 import styles from './Home.module.css'
 
@@ -26,14 +26,17 @@ export default function HomePage() {
   if (user.permissions.image) {
     tiles.push({ to: '/image', icon: ImageIcon, title: 'Image Processor', description: 'Удаление фона и водяных знаков' })
   }
+  if (user.permissions.multidl) {
+    tiles.push({ to: '/multidl', icon: Download, title: 'Multi downloader', description: 'Видео с Pinterest, Twitter/X, TikTok, VK' })
+  }
   if (isAdmin) {
     tiles.push({ to: '/admin', icon: Shield, title: 'Admin Panel', description: 'Управление пользователями и мониторинг' })
   } else {
     tiles.push({ to: '/me', icon: UserIcon, title: 'Личный кабинет', description: 'Профиль, сессии и безопасность' })
   }
 
-  const totalAvailable = [user.permissions.youtube, user.permissions.converter, user.permissions.image].filter(Boolean).length
-  const status = totalAvailable === 3 ? 'Все модули доступны' : `${totalAvailable} из 3 модулей`
+  const totalAvailable = [user.permissions.youtube, user.permissions.converter, user.permissions.image, user.permissions.multidl].filter(Boolean).length
+  const status = totalAvailable === 4 ? 'Все модули доступны' : `${totalAvailable} из 4 модулей`
 
   return (
     <div className={styles.wrapper}>

@@ -6,13 +6,14 @@ interface Props {
 }
 
 const MODULES: Array<{
-  key: 'youtube' | 'converter' | 'image'
+  key: 'youtube' | 'converter' | 'image' | 'multidl'
   label: string
-  limitKey: 'youtube_daily' | 'convert_daily' | 'image_daily'
+  limitKey: 'youtube_daily' | 'convert_daily' | 'image_daily' | 'multidl_daily'
 }> = [
   { key: 'youtube', label: 'YouTube', limitKey: 'youtube_daily' },
   { key: 'converter', label: 'Converter', limitKey: 'convert_daily' },
   { key: 'image', label: 'Image', limitKey: 'image_daily' },
+  { key: 'multidl', label: 'Multi downloader', limitKey: 'multidl_daily' },
 ]
 
 function colorClass(used: number, limit: number): string {

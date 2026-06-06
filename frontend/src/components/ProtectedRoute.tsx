@@ -3,7 +3,7 @@ import { useAuth } from '../stores/authStore'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredPermission?: 'youtube' | 'converter' | 'image'
+  requiredPermission?: 'youtube' | 'converter' | 'image' | 'multidl'
   adminOnly?: boolean
 }
 
