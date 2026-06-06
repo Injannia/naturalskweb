@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**NaturalskWeb** — закрытое веб-приложение для малых команд (1–5 чел.), 4 модуля: YouTube-загрузчик, конвертер файлов, обработка изображений (фон/водяные знаки), админ-панель с мониторингом.
+**NaturalskWeb** — закрытое веб-приложение для малых команд (1–5 чел.), 5 модулей: YouTube-загрузчик, конвертер файлов, обработка изображений (фон/водяные знаки), Multi downloader (Pinterest/Twitter-X/TikTok/VK через yt-dlp), админ-панель с мониторингом.
 
 Монорепо: `/frontend` (React SPA) + `/backend` (FastAPI). Спеки фаз — `/spec/`, русский.
 
@@ -22,7 +22,7 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 ```bash
 .venv/bin/alembic upgrade head            # применить миграции (создаёт/обновляет БД)
 .venv/bin/uvicorn app.main:app --reload   # FastAPI на :8000
-.venv/bin/python -m pytest -q             # Все тесты (~150 шт.)
+.venv/bin/python -m pytest -q             # Все тесты (~205 шт.)
 .venv/bin/python -m pytest tests/test_admin_users.py -v   # Один файл
 ```
 
@@ -37,6 +37,8 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 ### UI/E2E проверки
 
 Юзай **skill `camoufox-cli`** (не пиши .spec.ts вручную). Сценарий: `camoufox-cli open URL` → `snapshot -i` → `click @eN` / `fill @eN ...` → `snapshot -i`. Anti-detect Firefox, `navigator.webdriver=false`.
+
+⚠️ `camoufox-cli eval` исполняется в **content-script контексте, освобождённом от CSP страницы**. Media/ресурсы, созданные/загруженные из `eval`, играют даже если CSP блокирует их в контексте самой страницы. Не доверяй `eval`-проверкам `<video>/<audio>/img` при отладке CSP — проверяй реальный React-рендер.
 
 ### Database
 
@@ -61,6 +63,7 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 - `users` — `/api/users/{id}/avatar` (раздача WebP-аватаров авторизованным)
 - `admin` — **package** `routers/admin/`: свой APIRouter в `__init__.py`, под-роутеры `users.py` (CRUD + reset/toggle), `sessions.py`, `monitoring.py` (stats/system/storage), `audit.py`. Helpers — `_shared.py` (role-проверки), `_filesystem.py` (size/count). `__init__.py` re-export'ит endpoint-функции, чтобы `from app.routers.admin import list_users, kill_session, ...` работал в тестах
 - `youtube` / `convert` / `image` — модульные эндпоинты
+- `multidl` — Multi downloader (`app/routers/multidl.py`, service `services/multidl_service.py`): `/info` (preview), `/download` (background-таск), `/status/{id}`, `/file/{id}` (стрим готового файла), `/cancel`, `/retry`, `/tasks`, `/quota`. Качает через yt-dlp (видео mp4 / `audio_only` → mp3), кладёт в `uploads/{shared_file_id}/`. Файл раздаётся с реальным MIME (helper `_guess_media_type` по расширению, не `octet-stream` — иначе `<video>`-превью не играет). URL-валидатор в `schemas/multidl.py` (`_validate_url`, `^https?://`) даёт русское сообщение вместо сырого 422.
 
 **Auth-инвариант (важно):**
 - JWT содержит `iat`. `User` имеет `kicked_at` (timezone-aware UTC). На каждом запросе `dependencies.get_current_user` сравнивает `iat` с `kicked_at`, возвращает 401 если токен старее. **Юзается для kill-session, удаления пользователя, reset-password — все ставят `kicked_at = now()`.** SQLite отдаёт naive datetime, потому auth-логика делает `replace(tzinfo=utc)` перед сравнением — не сломайте.
@@ -94,7 +97,7 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 /login, /change-password    — публичные
 /                           — HomePage с плитками (по permissions + ЛК/Admin Panel)
 /me                         — ProfilePage (avatar, usage bars, sessions, security)
-/youtube /converter /image  — модули (по permission)
+/youtube /converter /image /multidl  — модули (по permission)
 /admin?tab=users|audit|monitoring|profile  — admin/superadmin
 *                           — Navigate to "/"
 ```
@@ -126,6 +129,10 @@ bun run test:run             # Vitest (unit-тесты компонентов)
 - `useAuthedImage(url)` качает blob через api-клиент (с авторизацией), оборачивает в `URL.createObjectURL`, ревокает на размонтировании/смене URL.
 - `<AvatarImage userId version size accentBorder?>` — пропускает fetch когда `version === 0` (нет аватара), сразу рендерит fallback-иконку, чтоб не спамить 404. `accentBorder` оборачивает аватар в gradient-ring (юзается в `Topbar`; `AvatarUploader` делает свой ring через `.avatarRing` в Profile.module.css).
 - `version` в URL (`?v=N`) важен — cache-bust. После upload бэкенд инкрементит `avatar_version`, фронт перерефетчит `/auth/me`, AvatarImage перезагружается.
+
+**Media-превью (`hooks/useAuthedMedia`):** тянет авторизованный blob (video/audio) через api-клиент, `URL.createObjectURL`, отдаёт `<video>/<audio>` в `DownloadCard` (multidl). Revoke object-URL **отложен** (`REVOKE_GRACE_MS`), чтобы media-элемент успел открыть канал. **CSP-инвариант: `media-src` обязан включать `blob:`** (см. `middleware/security.py`) — без него Firefox в prod-сборке валит `<video src=blob:>` с `MediaError 4 "Failed to open channel"`, хотя в `vite dev` (CSP не шлётся) всё работает. `img-src` тоже содержит `blob:` (аватары). Регрессионные тесты — `tests/test_security_headers.py`.
+
+**API-ошибки (`utils/apiError.ts`):** `extractApiError(err, fallback)` достаёт читаемое сообщение из axios-ошибки — строковый `detail` ИЛИ массив 422 `[{loc,msg,type}]` (берёт `detail[0].msg`, срезает префикс `"Value error, "`). Юзай его в catch'ах вместо `String(detail)` (иначе массив 422 → `[object Object]` в тосте).
 
 ### Test pattern (backend) — ВАЖНО
 
