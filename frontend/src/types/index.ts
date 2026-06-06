@@ -11,16 +11,19 @@ export interface User {
     youtube: boolean
     converter: boolean
     image: boolean
+    multidl: boolean
   }
   limits: {
     youtube_daily: number
     convert_daily: number
     image_daily: number
+    multidl_daily: number
   }
   usage_today: {
     youtube: number
     converter: number
     image: number
+    multidl: number
   }
   usage_reset_date?: string
   avatar_version?: number
@@ -156,6 +159,7 @@ export interface AdminStats {
   total_downloads_today: number
   total_conversions_today: number
   total_image_ops_today: number
+  total_multidl_ops_today: number
   storage_used_mb: number
   active_sessions: number
   top_users: TopUser[]
