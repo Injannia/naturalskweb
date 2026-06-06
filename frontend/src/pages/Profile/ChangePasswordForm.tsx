@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import axios from 'axios'
+import { extractApiError } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { Button, Input } from '../../components/ui'
@@ -42,11 +42,7 @@ export default function ChangePasswordForm() {
       toast.success('Пароль изменён')
       close()
     } catch (e: unknown) {
-      const detail =
-        axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string'
-          ? e.response.data.detail
-          : 'Ошибка'
-      toast.error(detail)
+      toast.error(extractApiError(e, 'Ошибка'))
     } finally {
       setBusy(false)
     }

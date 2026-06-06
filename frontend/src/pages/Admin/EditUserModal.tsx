@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { extractApiError as errorMessage } from '../../utils/apiError'
 import { toast } from 'react-toastify'
 import api from '../../api/client'
 import { useAuth } from '../../stores/authStore'
@@ -21,12 +21,7 @@ function canModify(actorRole: string, actorId: number, target: UserDetail): bool
   return true
 }
 
-function errorMessage(e: unknown, fallback: string): string {
-  if (axios.isAxiosError(e) && typeof e.response?.data?.detail === 'string') {
-    return e.response.data.detail
-  }
-  return fallback
-}
+
 
 export default function EditUserModal({ userId, onClose, onSaved }: Props) {
   const { user: actor } = useAuth()

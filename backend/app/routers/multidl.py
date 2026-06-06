@@ -31,6 +31,26 @@ from app.services import multidl_service
 logger = logging.getLogger("naturalsk.multidl")
 router = APIRouter(prefix="/api/multidl", tags=["multidl"])
 
+# Browser-playable MIME types for the inline <video>/<audio> preview.
+# Unknown containers (e.g. .mkv) fall back to octet-stream — the file still
+# downloads fine, it just won't preview in the card.
+_PLAYABLE_MIME = {
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".ogv": "video/ogg",
+    ".ogg": "audio/ogg",
+    ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+    ".opus": "audio/opus",
+}
+
+
+def _guess_media_type(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    return _PLAYABLE_MIME.get(ext, "application/octet-stream")
+
 
 def _require_permission(user: User) -> None:
     if not user.permissions.get("multidl", False):
@@ -142,7 +162,7 @@ async def download_file(task_id: str, user: User = Depends(get_current_user), db
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Файл не найден. Возможно, он был удалён по истечении срока хранения.")
-    return FileResponse(path=file_path, filename=task.filename, media_type="application/octet-stream")
+    return FileResponse(path=file_path, filename=task.filename, media_type=_guess_media_type(task.filename))
 
 
 @router.delete("/cancel/{task_id}", response_model=dict)

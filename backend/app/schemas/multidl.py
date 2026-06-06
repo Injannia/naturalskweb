@@ -1,9 +1,21 @@
 """Pydantic schemas for the multi-platform downloader (multidl) router."""
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas._types import UtcDatetime
+
+_URL_RE = re.compile(r"^https?://\S+$", re.IGNORECASE)
+
+
+def _validate_url(v: str) -> str:
+    s = v.strip()
+    if not s:
+        raise ValueError("Ссылка не должна быть пустой")
+    if not _URL_RE.match(s):
+        raise ValueError("Введите корректную ссылку (начинается с http:// или https://)")
+    return s
 
 
 # ---------------------------------------------------------------------------
@@ -12,19 +24,16 @@ from app.schemas._types import UtcDatetime
 
 
 class InfoRequest(BaseModel):
-    url: str = Field(..., min_length=5, max_length=2048)
+    url: str = Field(..., max_length=2048)
 
     @field_validator("url")
     @classmethod
     def strip_url(cls, v: str) -> str:
-        s = v.strip()
-        if not s:
-            raise ValueError("URL не должен быть пустым")
-        return s
+        return _validate_url(v)
 
 
 class DownloadRequest(BaseModel):
-    url: str = Field(..., min_length=5, max_length=2048)
+    url: str = Field(..., max_length=2048)
     title: str | None = Field(default=None, max_length=512)
     audio_only: bool = Field(
         default=False,
@@ -34,10 +43,7 @@ class DownloadRequest(BaseModel):
     @field_validator("url")
     @classmethod
     def strip_url(cls, v: str) -> str:
-        s = v.strip()
-        if not s:
-            raise ValueError("URL не должен быть пустым")
-        return s
+        return _validate_url(v)
 
 
 # ---------------------------------------------------------------------------

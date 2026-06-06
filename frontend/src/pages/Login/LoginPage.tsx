@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import axios from 'axios'
 import api from '../../api/client'
+import { extractApiError } from '../../utils/apiError'
 import { useAuth } from '../../stores/authStore'
 import AuroraBackground from '../../components/AuroraBackground/AuroraBackground'
 import StarryBackground from '../../components/StarryBackground/StarryBackground'
@@ -45,14 +46,13 @@ export default function LoginPage() {
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response) {
         const status = err.response.status
-        const detail = err.response.data?.detail
 
         if (status === 423) {
           const seconds = err.response.data?.remaining_seconds
           const minutes = seconds ? Math.ceil(seconds / 60) : 15
           setError(`Аккаунт заблокирован. Попробуйте через ${minutes} мин.`)
         } else if (status === 401) {
-          setError(detail || 'Неверный логин или пароль')
+          setError(extractApiError(err, 'Неверный логин или пароль'))
         } else if (status === 429) {
           setError('Слишком много попыток. Подождите немного.')
         } else {

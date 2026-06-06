@@ -20,6 +20,16 @@ def test_schema_download_request_rejects_blank():
         DownloadRequest(url="   ")
 
 
+def test_schema_download_request_rejects_non_url():
+    # "g" and other non-URL input must yield a readable Russian message,
+    # not a raw min-length validation error.
+    with pytest.raises(ValidationError) as exc:
+        DownloadRequest(url="g")
+    assert "корректную ссылку" in str(exc.value)
+    with pytest.raises(ValidationError):
+        InfoRequest(url="not a url")
+
+
 def test_schema_status_literal_accepts_converting():
     s = DownloadStatus(task_id="t1", status="converting", progress=10.0)
     assert s.status == "converting"
@@ -200,3 +210,13 @@ async def test_monitoring_counts_multidl(db_session):
     await db_session.commit()
     stats = await get_stats(actor=admin, db=db_session)
     assert stats.total_multidl_ops_today == 4
+
+
+def test_guess_media_type_video_audio():
+    """Inline <video>/<audio> preview needs a real MIME, not octet-stream."""
+    from app.routers.multidl import _guess_media_type
+    assert _guess_media_type("clip.mp4") == "video/mp4"
+    assert _guess_media_type("song.mp3") == "audio/mpeg"
+    assert _guess_media_type("clip.webm") == "video/webm"
+    # unknown container falls back to octet-stream (download still works)
+    assert _guess_media_type("clip.mkv") == "application/octet-stream"

@@ -3,6 +3,7 @@ import { Download, RotateCcw, Loader2, Paintbrush, Square, Eraser, Undo2, Trash2
 import { toast } from 'react-toastify'
 
 import { imageApi } from '../imageApi'
+import { extractApiError } from '../../../utils/apiError'
 import type {
   ImageTaskListItem,
   ImageUploadResponse,
@@ -150,10 +151,7 @@ export default function WatermarkRemoval({
       )
       onProcessStart({ ...task, file_exists: false })
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        'Не удалось запустить обработку'
-      setError(message)
+      setError(extractApiError(err, 'Не удалось запустить обработку'))
       setLocalPhase('error')
     }
   }, [taskId, shapes, inpaintMethod, imageNaturalSize.width, onProcessStart])

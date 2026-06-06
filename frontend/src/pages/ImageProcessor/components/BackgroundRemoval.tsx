@@ -3,6 +3,7 @@ import { Download, RotateCcw, Loader2, Wand2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import { imageApi } from '../imageApi'
+import { extractApiError } from '../../../utils/apiError'
 import type { ImageTaskListItem, ImageUploadResponse } from '../types'
 import { ImageUploader } from './ImageUploader'
 import { ImageCompare } from './ImageCompare'
@@ -117,10 +118,7 @@ export default function BackgroundRemoval({
         file_exists: false,
       })
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-        'Не удалось запустить обработку'
-      setError(message)
+      setError(extractApiError(err, 'Не удалось запустить обработку'))
       setLocalPhase('error')
     }
   }, [taskId, onProcessStart])
