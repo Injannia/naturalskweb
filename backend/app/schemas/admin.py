@@ -83,6 +83,7 @@ class AdminStats(BaseModel):
     total_downloads_today: int
     total_conversions_today: int
     total_image_ops_today: int
+    total_multidl_ops_today: int
     storage_used_mb: float
     active_sessions: int
     top_users: list[TopUser]

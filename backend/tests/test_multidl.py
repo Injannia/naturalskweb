@@ -190,3 +190,13 @@ def test_integration_user_defaults_include_multidl():
     assert perms.get("multidl") is True
     assert limits.get("multidl_daily") == 50
     assert "multidl" in usage
+
+
+@pytest.mark.asyncio
+async def test_monitoring_counts_multidl(db_session):
+    from app.routers.admin.monitoring import get_stats
+    admin = await _make_user(db_session, username="adm_md", role="superadmin")
+    admin.usage_today = {"youtube": 0, "converter": 0, "image": 0, "multidl": 4}
+    await db_session.commit()
+    stats = await get_stats(actor=admin, db=db_session)
+    assert stats.total_multidl_ops_today == 4
