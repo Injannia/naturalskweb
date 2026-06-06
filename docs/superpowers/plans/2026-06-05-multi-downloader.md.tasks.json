@@ -4,77 +4,77 @@
     {
       "id": 1,
       "subject": "Task 0: MultiDownloadTask model + migration",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Persisted task table for Multi downloader, created via Alembic.\n\n**Files:** Create backend/app/models/multi_download_task.py; Modify backend/app/models/__init__.py; Create backend/alembic/versions/0002_multi_download_tasks.py\n\n**Verify:** cd backend && .venv/bin/alembic upgrade head && .venv/bin/python -c \"from app.models import MultiDownloadTask; print(MultiDownloadTask.__tablename__)\"\n\n```json:metadata\n{\"files\": [\"backend/app/models/multi_download_task.py\", \"backend/app/models/__init__.py\", \"backend/alembic/versions/0002_multi_download_tasks.py\"], \"verifyCommand\": \"cd backend && .venv/bin/alembic upgrade head\", \"acceptanceCriteria\": [\"MultiDownloadTask importable\", \"migration creates table with user_id index\", \"downgrade drops cleanly\"]}\n```"
     },
     {
       "id": 2,
       "subject": "Task 1: Pydantic schemas",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Request/response schemas with URL validation.\n\n**Files:** Create backend/app/schemas/multidl.py; Test backend/tests/test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k schema -v\n\n```json:metadata\n{\"files\": [\"backend/app/schemas/multidl.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k schema -v\", \"acceptanceCriteria\": [\"DownloadRequest accepts url+audio_only\", \"status literal includes converting\"]}\n```"
     },
     {
       "id": 3,
       "subject": "Task 2: find_ffmpeg() util",
-      "status": "pending",
+      "status": "completed",
       "description": "**Goal:** Shared ffmpeg-path helper.\n\n**Files:** Create backend/app/utils/ffmpeg.py; Test backend/tests/test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k ffmpeg -v\n\n```json:metadata\n{\"files\": [\"backend/app/utils/ffmpeg.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k ffmpeg -v\", \"acceptanceCriteria\": [\"find_ffmpeg() returns non-empty string\"]}\n```"
     },
     {
       "id": 4,
       "subject": "Task 3: multidl_service (info + download + task helpers)",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [1, 2, 3],
       "description": "**Goal:** Lean download service — info, mp4/mp3 pipeline, in-memory progress, task CRUD. No playlist/cache/dedup.\n\n**Files:** Create backend/app/services/multidl_service.py; Test backend/tests/test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k service -v\n\n```json:metadata\n{\"files\": [\"backend/app/services/multidl_service.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k service -v\", \"acceptanceCriteria\": [\"create_task persists + in-memory\", \"get_info parses mock\", \"completed download writes SharedFile video_id multidl:\"]}\n```"
     },
     {
       "id": 5,
       "subject": "Task 4: Router + registration",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [4],
       "description": "**Goal:** /api/multidl endpoints + register in main.py.\n\n**Files:** Create backend/app/routers/multidl.py; Modify backend/app/main.py; Test backend/tests/test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k router -v\n\n```json:metadata\n{\"files\": [\"backend/app/routers/multidl.py\", \"backend/app/main.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k router -v\", \"acceptanceCriteria\": [\"403 no perm\", \"429 quota; start increments usage\", \"no youtube cache collision\"]}\n```"
     },
     {
       "id": 6,
       "subject": "Task 5: Register multidl as first-class usage key",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [5],
       "description": "**Goal:** Add multidl/multidl_daily keys everywhere incl all 4 routers' usage_today reset dicts + cleanup scan.\n\n**Files:** Modify user.py, admin/users.py, main.py, youtube.py, convert.py, image.py; Test test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k integration -v && .venv/bin/python -m pytest -q\n\n```json:metadata\n{\"files\": [\"backend/app/models/user.py\", \"backend/app/routers/admin/users.py\", \"backend/app/main.py\", \"backend/app/routers/youtube.py\", \"backend/app/routers/convert.py\", \"backend/app/routers/image.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k integration -v && .venv/bin/python -m pytest -q\", \"acceptanceCriteria\": [\"User defaults include multidl\", \"cross-module rollover preserves multidl=0\", \"cleanup deletes stale multi_download_tasks\"]}\n```"
     },
     {
       "id": 7,
       "subject": "Task 6: Admin monitoring stat",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [6],
       "description": "**Goal:** total_multidl_ops_today in AdminStats + per-user totals.\n\n**Files:** Modify backend/app/schemas/admin.py, backend/app/routers/admin/monitoring.py; Test test_multidl.py\n\n**Verify:** cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k monitoring -v\n\n```json:metadata\n{\"files\": [\"backend/app/schemas/admin.py\", \"backend/app/routers/admin/monitoring.py\", \"backend/tests/test_multidl.py\"], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest tests/test_multidl.py -k monitoring -v\", \"acceptanceCriteria\": [\"AdminStats has total_multidl_ops_today\", \"get_stats sums multidl\"]}\n```"
     },
     {
       "id": 8,
       "subject": "Task 7: Frontend types, API client, useAuthedMedia hook",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [5, 7],
       "description": "**Goal:** TS types, axios api, authed-blob hook.\n\n**Files:** Create pages/MultiDownloader/types.ts, multidlApi.ts, hooks/useAuthedMedia.ts; Modify types/index.ts\n\n**Verify:** cd frontend && bun run build\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/MultiDownloader/types.ts\", \"frontend/src/pages/MultiDownloader/multidlApi.ts\", \"frontend/src/hooks/useAuthedMedia.ts\", \"frontend/src/types/index.ts\"], \"verifyCommand\": \"cd frontend && bun run build\", \"acceptanceCriteria\": [\"User/AdminStats include multidl\", \"multidlApi all methods\", \"tsc passes\"]}\n```"
     },
     {
       "id": 9,
       "subject": "Task 8: MultiDownloaderPage + DownloadCard",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [8],
       "description": "**Goal:** Page UI + task cards with inline authed video/audio preview.\n\n**Files:** Create MultiDownloaderPage.tsx, DownloadCard.tsx, MultiDownloader.module.css\n\n**Verify:** cd frontend && bun run build\n\n```json:metadata\n{\"files\": [\"frontend/src/pages/MultiDownloader/MultiDownloaderPage.tsx\", \"frontend/src/pages/MultiDownloader/DownloadCard.tsx\", \"frontend/src/pages/MultiDownloader/MultiDownloader.module.css\"], \"verifyCommand\": \"cd frontend && bun run build\", \"acceptanceCriteria\": [\"URL field + mp3 toggle + Скачать\", \"polls until terminal\", \"ready card inline player\"]}\n```"
     },
     {
       "id": 10,
       "subject": "Task 9: Frontend integration wiring",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [9],
       "description": "**Goal:** Route, ProtectedRoute type, HomePage tile, Sidebar/BottomNav, Create/Edit modals, UsageBars, MonitoringTab.\n\n**Files:** Modify App.tsx, ProtectedRoute.tsx, HomePage.tsx, Sidebar.tsx, BottomNav.tsx, CreateUserModal.tsx, EditUserModal.tsx, UsageBars.tsx, MonitoringTab.tsx\n\n**Verify:** cd frontend && bun run build && bun run test:run\n\n```json:metadata\n{\"files\": [\"frontend/src/App.tsx\", \"frontend/src/components/ProtectedRoute.tsx\", \"frontend/src/pages/Home/HomePage.tsx\", \"frontend/src/components/Layout/Sidebar.tsx\", \"frontend/src/components/Layout/BottomNav.tsx\", \"frontend/src/pages/Admin/CreateUserModal.tsx\", \"frontend/src/pages/Admin/EditUserModal.tsx\", \"frontend/src/pages/Profile/UsageBars.tsx\", \"frontend/src/pages/Admin/MonitoringTab.tsx\"], \"verifyCommand\": \"cd frontend && bun run build && bun run test:run\", \"acceptanceCriteria\": [\"/multidl guarded route\", \"HomePage tile + counter из 4\", \"modals expose perm+limit\", \"UsageBars + MonitoringTab\"]}\n```"
     },
     {
       "id": 11,
       "subject": "Task 10: End-to-end smoke verification",
-      "status": "pending",
+      "status": "completed",
       "blockedBy": [10],
       "description": "**Goal:** Real backend + real download smoke test via camoufox-cli.\n\n**Files:** none\n\n**Verify:** Manual; final cd backend && .venv/bin/python -m pytest -q\n\n```json:metadata\n{\"files\": [], \"verifyCommand\": \"cd backend && .venv/bin/python -m pytest -q\", \"acceptanceCriteria\": [\"/api/multidl/quota 200\", \"real URL downloads to ready\", \"mp3 toggle playable\"]}\n```"
     }
   ],
-  "lastUpdated": "2026-06-05"
+  "lastUpdated": "2026-06-06"
 }
