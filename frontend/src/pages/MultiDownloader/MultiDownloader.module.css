@@ -1,0 +1,95 @@
+.wrapper {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 96px;
+}
+.heading {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  margin: 0 0 4px;
+}
+.subheading {
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+}
+.inputCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+}
+.card {
+  padding: 16px;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cardTitle {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.platformChip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+.progressTrack {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.progressFill {
+  height: 100%;
+  background: var(--accent-gradient);
+  transition: width 0.3s ease;
+}
+.preview {
+  margin: 12px 0;
+}
+.player {
+  width: 100%;
+  border-radius: 12px;
+  background: #000;
+}
+.posterFallback {
+  width: 100%;
+  border-radius: 12px;
+}
+.errorText {
+  color: var(--accent-3);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  margin: 8px 0;
+}
+.cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
