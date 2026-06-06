@@ -147,6 +147,10 @@ export default function MonitoringTab() {
           <div className={styles.cardLabel}>Image ops сегодня</div>
           <div className={styles.cardValue}>{stats.total_image_ops_today}</div>
         </div>
+        <div className={styles.card}>
+          <div className={styles.cardLabel}>Multi downloads сегодня</div>
+          <div className={styles.cardValue}>{stats.total_multidl_ops_today}</div>
+        </div>
       </div>
 
       <Card variant="glass">

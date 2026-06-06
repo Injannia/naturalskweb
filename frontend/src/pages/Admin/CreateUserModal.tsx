@@ -12,8 +12,8 @@ interface Props {
   onCreated: () => void
 }
 
-const DEFAULT_PERMS = { youtube: true, converter: true, image: true }
-const DEFAULT_LIMITS = { youtube_daily: 50, convert_daily: 100, image_daily: 50 }
+const DEFAULT_PERMS = { youtube: true, converter: true, image: true, multidl: true }
+const DEFAULT_LIMITS = { youtube_daily: 50, convert_daily: 100, image_daily: 50, multidl_daily: 50 }
 const USERNAME_RE = /^[a-zA-Z0-9_]{2,50}$/
 
 function errorMessage(e: unknown, fallback: string): string {
@@ -152,7 +152,7 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
             <legend style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '0 var(--space-2)' }}>
               Права
             </legend>
-            {(['youtube', 'converter', 'image'] as const).map((k) => (
+            {(['youtube', 'converter', 'image', 'multidl'] as const).map((k) => (
               <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-1) 0', color: 'var(--text-primary)' }}>
                 <input
                   type="checkbox"
@@ -176,6 +176,7 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
                     ['youtube_daily', 'YouTube'],
                     ['convert_daily', 'Convert'],
                     ['image_daily', 'Image'],
+                    ['multidl_daily', 'Multi downloader'],
                   ] as const
                 ).map(([k, l]) => (
                   <Input

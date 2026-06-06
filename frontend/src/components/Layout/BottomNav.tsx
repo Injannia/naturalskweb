@@ -4,6 +4,7 @@ import {
   Youtube,
   FileBox,
   Image as ImageIcon,
+  Download,
   User as UserIcon,
   Shield,
 } from 'lucide-react'
@@ -33,6 +34,9 @@ export default function BottomNav() {
   }
   if (user.permissions.image) {
     items.push({ to: '/image', icon: ImageIcon, label: 'Image' })
+  }
+  if (user.permissions.multidl) {
+    items.push({ to: '/multidl', icon: Download, label: 'Multi' })
   }
 
   // Пятый пункт: профиль для обычных юзеров, админка для admin/superadmin
