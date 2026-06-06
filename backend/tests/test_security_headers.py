@@ -26,3 +26,15 @@ def test_csp_img_src_allows_blob():
     csp = resp.headers["Content-Security-Policy"]
     img_src = next(d for d in csp.split(";") if d.strip().startswith("img-src"))
     assert "blob:" in img_src
+
+
+def test_csp_media_src_allows_blob():
+    # Multi downloader previews a finished video/audio via a blob: object URL in
+    # <video>/<audio> (useAuthedMedia). media-src has no separate default, so it
+    # falls back to default-src 'self' — which excludes blob: — unless declared
+    # explicitly. Without this, Firefox fails the load with "Failed to open
+    # channel" and the preview never plays.
+    resp = client.get("/api/health")
+    csp = resp.headers["Content-Security-Policy"]
+    media_src = next(d for d in csp.split(";") if d.strip().startswith("media-src"))
+    assert "blob:" in media_src
